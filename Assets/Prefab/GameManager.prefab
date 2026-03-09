@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3724863891853502219
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2690863020695433365}
+  - component: {fileID: 3332359168176710385}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2690863020695433365
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3724863891853502219}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3332359168176710385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3724863891853502219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75df42501a93d794d85aceeb713d9d63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  HUDTimerText: {fileID: 0}
+  HUDDeathsText: {fileID: 0}
+  HUDEscapesText: {fileID: 0}
+  HUDAlertText: {fileID: 0}
+  TopBar: {fileID: 0}
+  victoryPanel: {fileID: 0}
+  victoryTimerText: {fileID: 0}
+  victoryDeathsText: {fileID: 0}
+  victoryAlertsText: {fileID: 0}
+  victoryStealthScoreText: {fileID: 0}
+  bestTimeText: {fileID: 0}
+  bestStealthScoreText: {fileID: 0}
+  victoryReplayButton: {fileID: 0}
+  victoryQuitButton: {fileID: 0}
+  gameOverPanel: {fileID: 0}
+  gameOverTimeText: {fileID: 0}
+  gameOverAlertsText: {fileID: 0}
+  gameOverRetryButton: {fileID: 0}
+  gameOverMenuButton: {fileID: 0}
+  levelStartTime: 0
+  currentTime: 0
+  deathCount: 0
+  escapeCount: 0
+  alertCount: 0
+  timesSpotted: 0
+  stealthScore: 0
+  fastestEscape: Infinity
+  bestStealthRating: 0
+  fewestAlerts: 2147483647
+  fewestDeaths: 2147483647
+  mainMenuSceneName: MainMenu
