@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices.WindowsRuntime;
+using UnityEditor.Timeline.Actions;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,18 +10,41 @@ public class Guard : MonoBehaviour
 
     [Header("Guard Settings")]
     [SerializeField] public AIBrain currentBrain;
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float fieldOfView = 60f;
-
-    [Header("References")]
-    [SerializeField] private Transform playerTransform;
+    [SerializeField] protected float detectionRange = 10f;
+    [SerializeField] protected float fieldOfView = 60f;
 
     [Header("Kill Settings")]
-    [SerializeField] private float killRange = 2f;
+    [SerializeField] protected float killRange = 2f;
+
+    [Header("Hearing Settings")] // NEW
+    [SerializeField] protected float maxHearingDistance = 15f; // Guards can't hear beyond this
+    [SerializeField] public float guardHearingSensitivity = 5f; // multiplayer for sound travel 
+
+    [Header("References")]
+    [SerializeField] protected Transform playerTransform;
+
+    
 
     private bool hasKilledPlayer = false;
 
-    public Transform PlayerTransform => playerTransform;
+    public Transform PlayerTransform => currentBrain?.PlayerTransform;
+
+    public float GetFieldOfView()
+    {
+        return fieldOfView;
+    }
+
+    #endregion
+
+    #region Detection Changes
+    public float GetDetectionRange() => detectionRange;
+
+
+
+    public void SetDetectionRange(float newRange)
+    {
+        detectionRange = newRange;
+    }
 
     #endregion
 
@@ -72,58 +96,31 @@ public class Guard : MonoBehaviour
     // convulted method but had a race condition with player re-spawning  
     public bool HasLineOfSightToPlayer()
     {
-        //Debug.LogWarning("=== HasLineOfSightToPlayer CALLED ===");
-
-        if (!playerTransform )
-        {
-            //Debug.Log("PlayerTransform is null, trying FindPlayer()");
-            FindPlayer();
-        }
-
-        if(playerTransform ==  null) 
-        {
-            //Debug.LogError("Payer is NULL!");
-            return false; 
-        }
-
-        // Log positions
-        //Debug.Log($"Guard position: {transform.position}");
-        //Debug.Log($"Player position: {playerTransform.position}");
+        if (!playerTransform) return false;
 
         Vector3 directionToPlayer = (playerTransform.position - transform.position).normalized;
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
-        //Debug.Log($"Direction to player: {directionToPlayer}");
-        //Debug.Log($"Distance to player: {distanceToPlayer}");
-
-        //Debug.Log($"Performing raycast with detectionRange: {detectionRange}");
-        
-        // raycast 
         RaycastHit hit;
         bool raycastHit = Physics.Raycast(transform.position, directionToPlayer, out hit, detectionRange);
 
-        //Debug.Log($"Raycast executed. Hit something: {raycastHit}");
-
         if (raycastHit)
         {
-            //Debug.Log($"Raycast hit: {hit.transform.name} at distance {hit.distance}");
-            //Debug.Log($"Hit tag: {hit.transform.tag}");
-            //Debug.Log($"Hit layer: {LayerMask.LayerToName(hit.transform.gameObject.layer)}");
-            //Debug.Log($"Hit point: {hit.point}");
+            // Check if we hit grass FIRST - vision is blocked!
+            if (hit.transform.CompareTag("Grass"))
+            {
+                //Debug.DrawLine(transform.position, hit.point, Color.yellow, 1.0f);
+                //Debug.LogWarning($"Vision blocked by grass: {hit.transform.name}");
+                return false; // Vision blocked by grass - CANNOT see player
+            }
 
+            // Otherwise check if we hit the player
             bool canSee = hit.transform == playerTransform;
-            //Debug.LogError($"Can see player: {canSee}");
-
-            // Draw a persistent debug line
-            Debug.DrawLine(transform.position, hit.point, canSee ? Color.green : Color.red, 1.0f);
-
+            //Debug.DrawLine(transform.position, hit.point, canSee ? Color.green : Color.red, 1.0f);
             return canSee;
         }
-        else
-        {
-            Debug.DrawRay(transform.position, directionToPlayer * detectionRange, Color.magenta, 1.0f);
-            return false;
-        }
+
+        //Debug.DrawRay(transform.position, directionToPlayer * detectionRange, Color.magenta, 1.0f);
+        return false;
     }
 
     // setter method to guard to target player
@@ -205,6 +202,85 @@ public class Guard : MonoBehaviour
 
     #endregion
 
+    #region Hear player
+    public void HearNoise(Vector3 noisePosition, float noiseRadius)
+    {
+        // Calculate distance to noise
+        float distanceToNoise = Vector3.Distance(transform.position, noisePosition);
+
+        // Check if within max hearing range
+        if (distanceToNoise > maxHearingDistance)
+        {
+            return;
+        }
+
+        // Calculate effective radius
+        float effectiveRadius = Mathf.Min(noiseRadius, maxHearingDistance);
+
+        // Check if within effective noise radius
+        if (distanceToNoise <= effectiveRadius)
+        {
+            Debug.Log($" Guard {gameObject.name} HEARD noise at distance {distanceToNoise}");
+
+            //// Check if already chasing
+            //if (HasLineOfSightToPlayer())
+            //{
+            //    Debug.Log("Already sees player - chasing instead");
+            //    return;
+            //}
+
+            // FIX: ALWAYS go suspicious regardless of grass!
+            Debug.Log($" Setting SUSPICIOUS state (player in grass: {IsPlayerInGrass()})");
+
+            if (currentBrain is BTBrain btBrain)
+            {
+                btBrain.SetSuspicious(noisePosition, Random.Range(1f, 5f));
+            }
+            else if (currentBrain is FSM fsmBrain)
+            {
+                fsmBrain.SetSuspicious(noisePosition, Random.Range(1f, 5f));
+            }
+
+            // Visual feedback - purple for ALL noise reactions
+            Debug.DrawLine(transform.position, noisePosition, Color.magenta, 3f);
+        }
+    }
+
+    // Helper method to check if player is in grass
+    private bool IsPlayerInGrass()
+    {
+        if (playerTransform == null) return false;
+
+        // Check if player is touching grass trigger
+        Collider[] playerColliders = playerTransform.GetComponentsInChildren<Collider>();
+        foreach (Collider col in playerColliders)
+        {
+            // Check if any collider is overlapping with grass
+            Collider[] overlaps = Physics.OverlapSphere(col.bounds.center, 0.1f);
+            foreach (Collider overlap in overlaps)
+            {
+                if (overlap.CompareTag("Grass"))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Alternative: Raycast down to check grass under player
+        RaycastHit hit;
+        if (Physics.Raycast(playerTransform.position, Vector3.down, out hit, 2f))
+        {
+            if (hit.collider.CompareTag("Grass"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    #endregion
+
     #region Kill Player
 
     private void CheckForKill()
@@ -238,19 +314,6 @@ public class Guard : MonoBehaviour
 
     #endregion
 
-    #region Detection Changes
-
-    public float GetDetectionRange()
-    {
-        return detectionRange;
-    }
-
-    public void SetDetectionRange(float newRange)
-    {
-        detectionRange = newRange;
-    }
-
-    #endregion
 
     #region Debug
 
@@ -272,6 +335,10 @@ public class Guard : MonoBehaviour
     // Enhanced Gizmos for Scene view
     private void OnDrawGizmos()
     {
+        // NEW: Draw hearing range sphere
+        Gizmos.color = new Color(0.5f, 0f, 0.5f, 0.1f); // Semi-transparent purple
+        Gizmos.DrawWireSphere(transform.position, maxHearingDistance);
+
         // kill zone
         Gizmos.color = new Color(1f, 0f, 0f, 0.1f);
         Gizmos.DrawWireSphere(transform.position, killRange);

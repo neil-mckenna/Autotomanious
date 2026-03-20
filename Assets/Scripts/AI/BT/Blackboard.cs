@@ -26,7 +26,8 @@ public class Blackboard : MonoBehaviour
         {
             if (_instance == null)
             {
-                _instance = FindObjectOfType<Blackboard>();
+                //_instance = FindObjectOfType<Blackboard>();
+                _instance = GameObject.FindFirstObjectByType(typeof(Blackboard)) as Blackboard;
 
                 if (_instance == null)
                 {

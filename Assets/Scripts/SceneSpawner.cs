@@ -7,7 +7,8 @@ using Unity.VisualScripting;
 public class SceneSpawner : MonoBehaviour
 {
     [Header("Guard Prefabs")]
-    [SerializeField] private GameObject guardPrefab;  
+    [SerializeField] private GameObject guardPrefab;
+    [SerializeField] private AIBrain zombieBrainPrefab;
     [SerializeField] private AIBrain fsmBrainPrefab;
     [SerializeField] private AIBrain behaviourTreeBrainPrefab;
 
@@ -99,37 +100,54 @@ public class SceneSpawner : MonoBehaviour
     // spawn guards amount on 
     private void SpawnAllGuards()
     {
-        // saftey checks
+        // safety checks
         if (guardPrefab == null)
         {
-            //Debug.LogError("Guard prefab not assigned!");
+            Debug.LogError("Guard prefab not assigned!");
             return;
         }
 
         if (guardSpawnPoints == null || guardSpawnPoints.Length == 0)
         {
-            //Debug.LogError("No guard spawn points assigned!");
+            Debug.LogError("No guard spawn points assigned!");
             return;
         }
 
         if (allWaypoints == null || allWaypoints.Length == 0)
         {
-            //Debug.LogError("No Waypoints assigned!");
+            Debug.LogError("No Waypoints assigned!");
             return;
         }
 
         // initialize the enum
         AISettings.AIType selectedAI = AISettings.Instance.selectedAIType;
 
-        // teritary to match the correct prefab
-        AIBrain brainPrefab = selectedAI == AISettings.AIType.FSM ? fsmBrainPrefab : behaviourTreeBrainPrefab;
+        // FIX: Choose the correct brain prefab based on selected AI type
+        AIBrain brainPrefab = null;
 
-        // spawn no of guards
+        switch (selectedAI)
+        {
+            case AISettings.AIType.FSM:
+                brainPrefab = fsmBrainPrefab;
+                break;
+            case AISettings.AIType.BehaviourTree:
+                brainPrefab = behaviourTreeBrainPrefab;
+                break;
+            case AISettings.AIType.Zombie:
+                brainPrefab = zombieBrainPrefab;  
+                break;
+            default:
+                brainPrefab = fsmBrainPrefab;  // Default fallback
+                break;
+        }
+
+        // spawn number of guards
         for (int i = 0; i < numberOfGuards; i++)
         {
             SpawnSingleGuard(brainPrefab, i);
         }
     }
+
 
     // spawn guard with name, at a random spawn point, attach to parent prefab, get navmesh component, warp onto navmesh 
     private void SpawnSingleGuard(AIBrain brainPrefab, int guardIndex)
@@ -157,10 +175,17 @@ public class SceneSpawner : MonoBehaviour
         Transform[] randomWaypoints = GetRandomWaypointsForGuard(guardIndex);
 
         // cast
-        if (brain is FSM fsmBrain)
+        //
+        if(brain is Zombie zombieBrain)
+        {
+            zombieBrain.SetWaypoints(randomWaypoints);
+
+            //Debug.Log($"Guard {guardIndex} (FSM) got {randomWaypoints.Length} random waypoints");
+        }
+        else if (brain is FSM fsmBrain)
         {
             
-            fsmBrain.waypoints = randomWaypoints;
+            fsmBrain.SetWaypoints(randomWaypoints);
 
             //Debug.Log($"Guard {guardIndex} (FSM) got {randomWaypoints.Length} random waypoints");
         }

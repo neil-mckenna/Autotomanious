@@ -138,12 +138,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EscapeZone
   playerTag: Player
-  holdTimeToEscape: 1.5
-  escapePromptUI: {fileID: 0}
-  progressSlider: {fileID: 0}
-  victoryEffect: {fileID: 0}
-  escapeSound: {fileID: 0}
-  holdSound: {fileID: 0}
+  victoryEffect: {fileID: 3024922844627558125, guid: 28883420f29b9aa4f8dcd00fd022d34d, type: 3}
+  escapeSound: {fileID: 8300000, guid: 19f89c6e740e7447f9e12a8310d3e973, type: 3}
+  hasEscaped: 0
 --- !u!65 &4973824589711962960
 BoxCollider:
   m_ObjectHideFlags: 0

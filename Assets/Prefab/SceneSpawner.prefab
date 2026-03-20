@@ -45,10 +45,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneSpawner
   guardPrefab: {fileID: 4748748695555308879, guid: d920e3501de2fd24982cacdfe4c97fed, type: 3}
+  zombieBrainPrefab: {fileID: 8109371909011459582, guid: 35eaba6bf60d8cf4aaaae44965096d41, type: 3}
   fsmBrainPrefab: {fileID: 6485703321752566004, guid: 7b69112fa4742d94ea431a662b65227f, type: 3}
   behaviourTreeBrainPrefab: {fileID: 9117106760143838986, guid: 58f27b044fa089b428097b34d211379a, type: 3}
-  numberOfGuards: 5
+  numberOfGuards: 20
   guardSpawnPoints:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -61,6 +74,19 @@ MonoBehaviour:
   playerSpawnPoint: {fileID: 0}
   playerPrefab: {fileID: 5803291071894277873, guid: e93a9d93f1acf014c99c9f6a2f4ae63d, type: 3}
   allWaypoints:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}

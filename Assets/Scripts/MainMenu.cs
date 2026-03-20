@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class MainMenu : MonoBehaviour
 {
     [Header("UI Buttons")]
+    [SerializeField] private Button zombieButton;
     [SerializeField] private Button fsmButton;
     [SerializeField] private Button btButton;
     [SerializeField] private Button quitButton;
@@ -14,6 +15,7 @@ public class MainMenu : MonoBehaviour
     private void Start()
     {
         // Setup button listeners, handlers
+        zombieButton.onClick.AddListener(() => StartGameWithAI(AISettings.AIType.Zombie));
         fsmButton.onClick.AddListener(() => StartGameWithAI(AISettings.AIType.FSM));
         btButton.onClick.AddListener(() => StartGameWithAI(AISettings.AIType.BehaviourTree));
 

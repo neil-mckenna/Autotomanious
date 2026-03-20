@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8065062685130180613}
   - component: {fileID: 4233283449243381936}
   - component: {fileID: 4528973204361053293}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -101,10 +101,9 @@ GameObject:
   - component: {fileID: 4647821302275436371}
   - component: {fileID: 1268344535446566687}
   - component: {fileID: 2705607410402840574}
-  - component: {fileID: 1000834386871558219}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: GrassZone
-  m_TagString: Untagged
+  m_TagString: Grass
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -144,8 +143,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 8, y: 1, z: 8}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 8, y: 4.8999553, z: 8}
+  m_Center: {x: 0, y: -0.23777175, z: 0}
 --- !u!82 &1268344535446566687
 AudioSource:
   m_ObjectHideFlags: 0
@@ -167,7 +166,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 0.64257455
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -270,17 +269,3 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &1000834386871558219
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9066728904720176454}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 48db28a1a9ccf2548b92c915f2ba89c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Grass
-  detectionReductionFactor: 0.5
-  playerTag: Player

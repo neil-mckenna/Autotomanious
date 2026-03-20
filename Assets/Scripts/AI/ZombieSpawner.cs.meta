@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c78bb36c8500f934caf4026bf8be1212
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - zombiePrefab: {fileID: 8335394858368566371, guid: a7a95c20a091f0749b4cade1e8439d4c, type: 3}
+  - zombieBrainPrefab: {fileID: 8109371909011459582, guid: 35eaba6bf60d8cf4aaaae44965096d41, type: 3}
+  - spawnEffect: {instanceID: 0}
+  - spawnSound: {fileID: 8300000, guid: 72548c246faa94f9f97bb667ee818b5b, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

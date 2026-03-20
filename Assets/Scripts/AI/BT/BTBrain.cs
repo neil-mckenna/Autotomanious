@@ -10,39 +10,46 @@ public class BTBrain : AIBrain
     #region Properties
 
     [Header("Behaviour Tree Settings")]
-    [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float fieldOfView = 60f;
+    //[SerializeField] private float detectionRange = 10f;
+    //[SerializeField] private float fieldOfView = 60f;
     [SerializeField] private float chaseSpeed = 5f;
     [SerializeField] private float wanderSpeed = 3.5f;
     [SerializeField] private float searchDuration = 3f;
 
-    [Header("Waypoints")]
-    [SerializeField] public Transform[] waypoints;
 
     private BehaviourTree tree;
     private bool hasInitialised = false;
 
     // State tracking
     private bool wasPlayerVisible = false;
-    private Vector3 lastKnownPlayerPosition;
+    
     private float searchTimer;
     private string currentAction = "Initializing...";
 
-    #endregion
+    private bool isSuspicious = false;
+    private Vector3 suspiciousPosition;
+    private float suspiciousTimer;
 
-    #region Set Waypoints
-    public void SetWaypoints(Transform[] newWaypoints)
+    // wait times
+    private bool isWaiting = false;
+    private float waitTimer = 0f;
+    private float minWaitTime = 2f;
+    private float maxWaitTime = 10f;
+
+    public string GetCurrentAction()
     {
-        waypoints = newWaypoints;
+        return currentAction;
     }
 
     #endregion
+
+    
 
     #region Init
 
     public override void Init(Guard guard)
     {
-        Debug.Log($"=== BTBrain.Init START for {guard.name} ===");
+        //Debug.Log($"=== BTBrain.Init START for {guard.name} ===");
 
         this.guard = guard;
 
@@ -67,7 +74,7 @@ public class BTBrain : AIBrain
         if (waypoints != null && waypoints.Length > 0)
         {
             currentWaypointIndex = 0;
-            Debug.Log($"BTBrain received {waypoints.Length} waypoints");
+            //Debug.Log($"BTBrain received {waypoints.Length} waypoints");
 
             // Set first destination
             if (agent != null && waypoints[0] != null)
@@ -85,7 +92,7 @@ public class BTBrain : AIBrain
 
         hasInitialised = true;
         currentAction = "Patrolling";
-        Debug.Log($"=== BTBrain.Init COMPLETE for {guard.name} ===");
+        //Debug.Log($"=== BTBrain.Init COMPLETE for {guard.name} ===");
     }
 
     #endregion
@@ -98,11 +105,115 @@ public class BTBrain : AIBrain
         if (!hasInitialised || tree == null || guard == null)
             return;
 
+        
+
         // Process the tree every frame
         Node.Status status = tree.Process();
+        
 
-        // Remove Handles.Label from here - it causes errors!
-        // DebugDraw() is now called from OnDrawGizmos only
+    }
+
+    #endregion
+
+    #region Hearing Player
+    public void SetSuspicious(Vector3 position, float duration)
+    {
+        isSuspicious = true;
+        suspiciousPosition = position;
+        suspiciousTimer = duration;
+        currentAction = "Suspicious";
+
+        Debug.Log($"BT Guard suspicious at {position} from noise");
+    }
+
+    // Add this condition for the tree
+    private Node.Status IsSuspiciousCondition()
+    {
+        if (isSuspicious && suspiciousTimer > 0)
+        {
+            return Node.Status.SUCCESS;
+        }
+        return Node.Status.FAILURE;
+    }
+
+    // Add this action for the tree
+    private Node.Status SuspiciousAction()
+    {
+        if (!isSuspicious) return Node.Status.FAILURE;
+
+        suspiciousTimer -= Time.deltaTime;
+        currentAction = "Suspicious";
+
+        // INVESTIGATE RANDOM AREA
+        if (agent != null && (!agent.hasPath || agent.remainingDistance < 1.0f))
+        {
+            float randomAngle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+            float randomDistance = Random.Range(3f, 8f);
+
+            Vector3 randomOffset = new Vector3(
+                Mathf.Cos(randomAngle) * randomDistance,
+                0,
+                Mathf.Sin(randomAngle) * randomDistance
+            );
+
+            Seek(suspiciousPosition + randomOffset);
+        }
+
+        // Check if player is in grass FIRST
+        bool playerInGrass = IsPlayerInGrass();
+
+        // Only check line of sight if player is NOT in grass
+        // OR if they are in grass, use a much stricter check
+        bool canSeePlayer = guard.HasLineOfSightToPlayer();
+
+        if (canSeePlayer)
+        {
+            float distance = Vector3.Distance(transform.position, guard.PlayerTransform.position);
+            float detectionChance = 0f;
+
+            if (playerInGrass)
+            {
+                // If we can see them through grass (shouldn't happen), use VERY low chance
+                Debug.LogWarning($"Can see player through grass? This shouldn't happen! Check grass collider.");
+                detectionChance = 0.05f; // Only 5% chance even if visible through grass
+            }
+            else
+            {
+                // Normal detection when not in grass
+                if (distance < 3f) detectionChance = 0.8f;
+                else if (distance < 5f) detectionChance = 0.5f;
+                else if (distance < 8f) detectionChance = 0.2f;
+                else detectionChance = 0.1f;
+            }
+
+            if (Random.value < detectionChance)
+            {
+                Debug.Log($"BT: Saw player! (Chance: {detectionChance * 100}%)");
+                isSuspicious = false;
+                currentAction = "Chasing";
+                return Node.Status.FAILURE;
+            }
+            else
+            {
+                Debug.Log($"BT: Missed player (Chance to spot was {detectionChance * 100}%)");
+            }
+        }
+        else
+        {
+            if (playerInGrass)
+            {
+                Debug.Log("Player hidden in grass - safe");
+            }
+        }
+
+        if (suspiciousTimer <= 0)
+        {
+            isSuspicious = false;
+            currentAction = "Patrolling";
+            return Node.Status.SUCCESS;
+        }
+
+        return Node.Status.RUNNING;
     }
 
     #endregion
@@ -114,6 +225,16 @@ public class BTBrain : AIBrain
     {
         if (guard == null || guard.PlayerTransform == null)
             return Node.Status.FAILURE;
+
+        // slow down the autromatic seeing
+        if (isSuspicious && suspiciousTimer > 0)
+        {
+            // Only check for player if we're in the final phase of investigation
+            if (suspiciousTimer > 5.0f) // Still early in investigation
+            {
+                return Node.Status.FAILURE; // Stay suspicious, don't chase
+            }
+        }
 
         bool canSee = guard.HasLineOfSightToPlayer();
 
@@ -284,6 +405,71 @@ public class BTBrain : AIBrain
             return Node.Status.FAILURE; // Failure triggers selector to try chase
         }
 
+        // Check if we've reached a waypoint and should start waiting
+        if (agent != null && !agent.pathPending && agent.remainingDistance < 0.5f && !isWaiting)
+        {
+            // Reached waypoint - start waiting
+            if (waypoints != null && waypoints.Length > 0)
+            {
+                isWaiting = true;
+                waitTimer = Random.Range(minWaitTime, maxWaitTime);
+                Debug.Log($"Reached waypoint {currentWaypointIndex}. Waiting for {waitTimer:F1} seconds...");
+            }
+        }
+
+        return Node.Status.RUNNING;
+    }
+
+    #endregion
+
+    #region Waypoint Waiting
+
+    private Node.Status IsWaitingCondition()
+    {
+        if (isWaiting && waitTimer > 0)
+        {
+            return Node.Status.SUCCESS;
+        }
+        return Node.Status.FAILURE;
+    }
+
+    private Node.Status WaitAction()
+    {
+        if (!isWaiting) return Node.Status.FAILURE;
+
+        waitTimer -= Time.deltaTime;
+        currentAction = "Waiting";
+
+        // Stop the agent while waiting
+        if (agent != null && agent.hasPath)
+        {
+            agent.ResetPath();
+        }
+
+        // Optional: Look around while waiting
+        transform.Rotate(0, 10 * Time.deltaTime, 0); // Slow look around
+
+        // If wait time is up, move to next waypoint
+        if (waitTimer <= 0)
+        {
+            isWaiting = false;
+            currentAction = "Moving to next waypoint";
+
+            // Move to next waypoint
+            if (waypoints != null && waypoints.Length > 0)
+            {
+                currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
+                Transform nextWaypoint = waypoints[currentWaypointIndex];
+                if (nextWaypoint != null)
+                {
+                    Seek(nextWaypoint.position);
+                    Debug.Log($"Moving to waypoint {currentWaypointIndex} after waiting");
+                }
+            }
+
+            return Node.Status.SUCCESS;
+        }
+
         return Node.Status.RUNNING;
     }
 
@@ -293,55 +479,43 @@ public class BTBrain : AIBrain
 
     private void ConstructBehaviourTree()
     {
-        // create a tree base or stump
         tree = new BehaviourTree("BTBrain Tree");
-
-        // Root selector or main tree
         Selector root = new Selector("Root Selector");
 
-        //-------------------------------
-        // 1. CHASE BEHAVIOR (highest priority)
+        // 1. SUSPICIOUS (NEW HIGHEST PRIORITY when investigating noise)
+        Sequence suspiciousSequence = new Sequence("Suspicious Sequence");
+        suspiciousSequence.AddChild(new Leaf("Is Suspicious?", IsSuspiciousCondition));
+        suspiciousSequence.AddChild(new Leaf("Investigate", SuspiciousAction));
+
+        // 2. CHASE BEHAVIOR (second priority)
         Sequence chaseSequence = new Sequence("Chase Sequence");
+        chaseSequence.AddChild(new Leaf("Can See Player?", CanSeePlayerCondition));
+        chaseSequence.AddChild(new Leaf("Chase Player", ChasePlayerAction));
 
-        Leaf canSeePlayer = new Leaf("Can See Player?", CanSeePlayerCondition);
-        Leaf chasePlayer = new Leaf("Chase Player", ChasePlayerAction);
-
-        // add leafs to chase sequence
-        chaseSequence.AddChild(canSeePlayer);
-        chaseSequence.AddChild(chasePlayer);
-
-        //-------------------------
-        // 2. SEARCH BEHAVIOUR (medium priority)
+        // 3. SEARCH BEHAVIOUR
         Sequence searchSequence = new Sequence("Search Sequence");
+        searchSequence.AddChild(new Leaf("Lost Player?", LostPlayerCondition));
+        searchSequence.AddChild(new Leaf("Search at Last Position", SearchAction));
 
-        // leaf depending on the methods
-        Leaf lostPlayer = new Leaf("Lost Player?", LostPlayerCondition);
-        Leaf searchAtLastPosition = new Leaf("Search at Last Position", SearchAction);
+        // 4. WAIT BEHAVIOR 
+        Sequence waitSequence = new Sequence("Wait Sequence");
+        waitSequence.AddChild(new Leaf("Is Waiting?", IsWaitingCondition));
+        waitSequence.AddChild(new Leaf("Wait at Waypoint", WaitAction));
 
-        // add child to searchSequence
-        searchSequence.AddChild(lostPlayer);
-        searchSequence.AddChild(searchAtLastPosition);
-
-
-        //--------------------------------------
-        // 3. PATROL BEHAVIOR (lowest priority)
+        // 5. PATROL BEHAVIOR (lowest priority)
         Sequence patrolSequence = new Sequence("Patrol Sequence");
+        patrolSequence.AddChild(new Leaf("Patrol", PatrolAction));
 
-        Leaf patrol = new Leaf("Patrol", PatrolAction);
-
-        // just one leaf child
-        patrolSequence.AddChild(patrol);
-
-
-        //--------------------------------
+        // Add in NEW ORDER
+        root.AddChild(suspiciousSequence);
         root.AddChild(chaseSequence);
         root.AddChild(searchSequence);
+        root.AddChild(waitSequence);
         root.AddChild(patrolSequence);
 
         tree.AddChild(root);
 
-        // Print tree structure
-        tree.PrintTree();
+        //tree.PrintTree();
     }
 
     #endregion
