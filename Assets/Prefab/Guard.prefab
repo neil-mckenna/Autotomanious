@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9035442881599166077}
   - component: {fileID: 5902091795185336579}
   - component: {fileID: 5532095078888012786}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Brace
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -107,7 +107,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -122,7 +122,7 @@ GameObject:
   - component: {fileID: 5675585255871571030}
   - component: {fileID: 7570768253455392548}
   - component: {fileID: 4307199254883496988}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Upper
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -213,7 +213,7 @@ GameObject:
   - component: {fileID: 8692064182830350006}
   - component: {fileID: 1608758020744593177}
   - component: {fileID: 8116672257094203819}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DynamicVisionCone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -323,7 +323,7 @@ GameObject:
   - component: {fileID: 4882201662308104523}
   - component: {fileID: 277489973315805740}
   - component: {fileID: 6032198864300453812}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Buckle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -418,7 +418,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -433,7 +433,7 @@ GameObject:
   - component: {fileID: 4531830654376673586}
   - component: {fileID: 5481862560345117174}
   - component: {fileID: 4919455376504366002}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Hair
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -522,7 +522,7 @@ GameObject:
   - component: {fileID: 270781581826288210}
   - component: {fileID: 7746630803991046055}
   - component: {fileID: 3332306636799897428}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Brim
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -612,7 +612,7 @@ GameObject:
   - component: {fileID: 8035007988440921696}
   - component: {fileID: 853355359838679872}
   - component: {fileID: 5550848890110754064}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Badge_Lower_Cap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -707,10 +707,41 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &2002753412148828957
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 370600935020606606}
+  m_Layer: 8
+  m_Name: RaycastStartPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &370600935020606606
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2002753412148828957}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.72, z: 0.57}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3130695589043312017}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3211529761154461738
 GameObject:
   m_ObjectHideFlags: 0
@@ -720,7 +751,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4483703192097701608}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Specifics
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -761,7 +792,7 @@ GameObject:
   - component: {fileID: 7795868558788848404}
   - component: {fileID: 6312688883880923369}
   - component: {fileID: 7705945020121097259}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Shirt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -850,7 +881,7 @@ GameObject:
   - component: {fileID: 5424808727957987114}
   - component: {fileID: 4376788273624313905}
   - component: {fileID: 8028616484658304111}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Top
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -941,7 +972,7 @@ GameObject:
   - component: {fileID: 6787204794513905450}
   - component: {fileID: 7084643829334305030}
   - component: {fileID: 7841104420405222440}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Guard
   m_TagString: Guard
   m_Icon: {fileID: 0}
@@ -963,6 +994,7 @@ Transform:
   m_Children:
   - {fileID: 6836263661692354747}
   - {fileID: 8748746640495963613}
+  - {fileID: 370600935020606606}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8021094419553797382
@@ -977,13 +1009,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bddc4beceebe53044847a568701c969c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Guard
-  currentBrain: {fileID: 0}
-  detectionRange: 12
-  fieldOfView: 45
+  currentBrain: {fileID: 6485703321752566004, guid: 7b69112fa4742d94ea431a662b65227f, type: 3}
+  detectionRange: 15
+  fieldOfView: 60
+  rayCastStartLocation: {fileID: 370600935020606606}
   killRange: 2
-  maxHearingDistance: 40
-  guardHearingSensitivity: 1
-  playerTransform: {fileID: 0}
+  maxHearingDistance: 12
+  guardHearingSensitivity: 2
+  CanSeePlayer: 0
 --- !u!114 &6787204794513905450
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1030,7 +1063,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 1.5
+  m_Speed: 3
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -1054,7 +1087,7 @@ GameObject:
   - component: {fileID: 1314353647034674747}
   - component: {fileID: 56659509835913674}
   - component: {fileID: 6522373443881898250}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Badge_Lower_Shirt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1147,9 +1180,9 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -1162,7 +1195,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6836263661692354747}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: BaseCharacter
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1201,7 +1234,7 @@ GameObject:
   - component: {fileID: 9049939558165391783}
   - component: {fileID: 4423492217983399037}
   - component: {fileID: 904892447380585413}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Gun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1296,7 +1329,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -1312,7 +1345,7 @@ GameObject:
   - component: {fileID: 525849088986816482}
   - component: {fileID: 3282255784198686450}
   - component: {fileID: 4111520909737851959}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: RightLens
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1407,7 +1440,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5000001
   m_Height: 2
@@ -1425,7 +1458,7 @@ GameObject:
   - component: {fileID: 13273718395372583}
   - component: {fileID: 9126088030288796521}
   - component: {fileID: 6583026152630207256}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Arm_Right
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1520,7 +1553,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -1536,7 +1569,7 @@ GameObject:
   - component: {fileID: 5076096852745145721}
   - component: {fileID: 399160870661772961}
   - component: {fileID: 4136155982138712099}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: LeftLens
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1631,7 +1664,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5000001
   m_Height: 2
@@ -1648,7 +1681,7 @@ GameObject:
   - component: {fileID: 3620780211453808250}
   - component: {fileID: 1339850506033224870}
   - component: {fileID: 8543037167119496127}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Pants_Lower
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1738,7 +1771,7 @@ GameObject:
   - component: {fileID: 186850163492280521}
   - component: {fileID: 5662908496676911578}
   - component: {fileID: 524101545269793701}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Gun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1833,7 +1866,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -1848,7 +1881,7 @@ GameObject:
   - component: {fileID: 7905967567095138255}
   - component: {fileID: 3501715780936642259}
   - component: {fileID: 8926217365478929066}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: RightEye
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1937,7 +1970,7 @@ GameObject:
   - component: {fileID: 2843123751309181424}
   - component: {fileID: 8704691927975445286}
   - component: {fileID: 7473144396472230204}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2027,7 +2060,7 @@ GameObject:
   - component: {fileID: 3463064409239938622}
   - component: {fileID: 1644311526794997589}
   - component: {fileID: 7836984246262050454}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HolsterLeft
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2123,7 +2156,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -2136,7 +2169,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6121450250566997188}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2174,7 +2207,7 @@ GameObject:
   - component: {fileID: 312215120884829400}
   - component: {fileID: 3790486027073013238}
   - component: {fileID: 6670953634834159098}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Pants_Upper
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2263,7 +2296,7 @@ GameObject:
   - component: {fileID: 3517697601282178099}
   - component: {fileID: 1403216997682279044}
   - component: {fileID: 8878211265810832938}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: LeftEye
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2353,7 +2386,7 @@ GameObject:
   - component: {fileID: 3338432205291016474}
   - component: {fileID: 6784094280974495134}
   - component: {fileID: 77842366913940609}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Badge_Upper_Cap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2449,7 +2482,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -2464,7 +2497,7 @@ GameObject:
   - component: {fileID: 7119675179427328499}
   - component: {fileID: 1138959075880070432}
   - component: {fileID: 2883034324627686763}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Lower
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2554,7 +2587,7 @@ GameObject:
   - component: {fileID: 4447228665672993219}
   - component: {fileID: 2412061106282112996}
   - component: {fileID: 7501766598311689640}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Arm_Left
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2649,7 +2682,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -2665,7 +2698,7 @@ GameObject:
   - component: {fileID: 2103818492620501}
   - component: {fileID: 1935199107140325682}
   - component: {fileID: 988393548172879831}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Badge_Upper_Shirt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2759,9 +2792,9 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -2776,7 +2809,7 @@ GameObject:
   - component: {fileID: 7116193547922779268}
   - component: {fileID: 1126263093787686619}
   - component: {fileID: 6960093837874663906}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Mouth
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2863,7 +2896,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3077293688766461007}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Sunglasses
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2902,7 +2935,7 @@ GameObject:
   - component: {fileID: 5550044443822686227}
   - component: {fileID: 1345647038572230526}
   - component: {fileID: 9151922501250547949}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HolsterRight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2998,7 +3031,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
@@ -3013,7 +3046,7 @@ GameObject:
   - component: {fileID: 6990250852673670658}
   - component: {fileID: 7802805130775163942}
   - component: {fileID: 1469227230006210225}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: BeltPolice
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3105,7 +3138,7 @@ GameObject:
   - component: {fileID: 8761821590310266616}
   - component: {fileID: 5061781365032128384}
   - component: {fileID: 8771977725186922474}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Peak
   m_TagString: Untagged
   m_Icon: {fileID: 0}

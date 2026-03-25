@@ -1,0 +1,3 @@
+repository "Autotomanious/Autotomanious@5772741758142@cloud"
+  path "/"
+    smartbranch "/main"

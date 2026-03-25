@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 
 public class Player : MonoBehaviour
 {
@@ -12,12 +13,33 @@ public class Player : MonoBehaviour
     {
         isDead = false;
         FindGameManager();
-        //Debug.Log("Player enabled - isDead reset to false");
+
+        
+
+        ResetPlayer();
+        
     }
 
     private void Start()
     {
         gameManager = Object.FindAnyObjectByType<GameManager>();
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RegisterPlayer(this);
+        }
+        else
+        {
+            Debug.LogError("GameManager instance not found! Player registration failed.");
+            // Fallback: try to find GameManager
+            GameManager gm = FindAnyObjectByType<GameManager>();
+            if (gm != null)
+            {
+                gm.RegisterPlayer(this);
+            }
+        }
+
+
         drive = GetComponent<Drive>();
 
         if (drive == null)
@@ -48,7 +70,7 @@ public class Player : MonoBehaviour
         foreach (Collider col in nearbyColliders)
         {
             Guard guard = col.GetComponent<Guard>();
-            if (guard != null && !guard.HasLineOfSightToPlayer())
+            if (guard != null && !guard.currentBrain.HasLineOfSightToPlayer())
             {
                 // Guard hears the noise!
                 if (guard.currentBrain is BTBrain btBrain)
@@ -74,11 +96,11 @@ public class Player : MonoBehaviour
 
         if (other.gameObject.CompareTag("Guard"))
         {
-            Die();
+            Die(other.gameObject.name);
         }
     }
 
-    public void Die()
+    public void Die(string killerName)
     {
         if (isDead) { return; }
         isDead = true;
@@ -92,7 +114,7 @@ public class Player : MonoBehaviour
 
         if (gameManager != null)
         {
-            gameManager.PlayerDied("Touched By Guard");
+            gameManager.PlayerDied($"Touched By Guard {killerName}");
         }
         else
         {
@@ -104,29 +126,41 @@ public class Player : MonoBehaviour
 
     private void DisablePlayer()
     {
-        // Disable movement scripts (Drive)
+        Drive drive = GetComponent<Drive>();
+        if (drive != null)
+            drive.enabled = false;
+    }
+
+    public void ResetPlayer()
+    {
+        isDead = false;
+
+        Drive drive = GetComponent<Drive>();
+        if (drive != null)
+        {
+            drive.enabled = true;
+            //Debug.Log("Drive script re-enabled");
+        }
+
+        // Re-enable all scripts
         MonoBehaviour[] scripts = GetComponents<MonoBehaviour>();
         foreach (var script in scripts)
         {
-            if (script != this) // Don't disable this Player script
-                script.enabled = false;
+            script.enabled = true;
         }
 
-        // Disable CharacterController
-        CharacterController controller = GetComponent<CharacterController>();
-        if (controller != null)
-            controller.enabled = false;
-
-        // Hide player visually
+        // Re-enable all renderers
         Renderer[] renderers = GetComponentsInChildren<Renderer>();
         foreach (var renderer in renderers)
         {
-            renderer.enabled = false;
+            renderer.enabled = true;
         }
 
-        // Disable collider
+        // Re-enable collider
         Collider col = GetComponent<Collider>();
         if (col != null)
-            col.enabled = false;
+            col.enabled = true;
+
+        //Debug.Log("Player reset and reactivated");
     }
 }

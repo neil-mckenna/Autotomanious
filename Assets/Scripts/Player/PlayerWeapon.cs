@@ -55,7 +55,7 @@ public class PlayerWeapon : MonoBehaviour
 
         UpdateUI();
 
-        Debug.Log($" Player ready: {currentSmokeBombs} smoke bombs, {currentFlashBangs} flash bangs");
+        //Debug.Log($" Player ready: {currentSmokeBombs} smoke bombs, {currentFlashBangs} flash bangs");
     }
 
     void SetupInput()

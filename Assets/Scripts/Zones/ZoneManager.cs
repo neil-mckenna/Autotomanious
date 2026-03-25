@@ -34,13 +34,13 @@ public class ZoneManager : MonoBehaviour
             // Ensure it's a root object
             if (transform.parent != null)
             {
-                Debug.LogWarning("ZoneManager had a parent. Detaching to root.");
+                //Debug.LogWarning("ZoneManager had a parent. Detaching to root.");
                 transform.SetParent(null);
             }
 
             // Now it's safe to call DontDestroyOnLoad
             DontDestroyOnLoad(gameObject);
-            Debug.Log("ZoneManager initialized - will persist across scenes");
+            //Debug.Log("ZoneManager initialized - will persist across scenes");
         }
         else if (Instance != this)
         {
@@ -172,7 +172,7 @@ public class ZoneManager : MonoBehaviour
     public void ResetStats()
     {
         zoneStats.Clear();
-        Debug.Log("Zone stats reset");
+        //Debug.Log("Zone stats reset");
     }
 
     [ContextMenu("Print Zone Stats")]

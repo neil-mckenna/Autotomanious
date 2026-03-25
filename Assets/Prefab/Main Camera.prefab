@@ -150,8 +150,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da656002dc623d049ba5b5a6affc4e92, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
-  target: {fileID: 0}
+  target: {fileID: 7965943862363237027, guid: e93a9d93f1acf014c99c9f6a2f4ae63d, type: 3}
   distance: 8
   height: 4
+  minDistance: 3
+  maxDistance: 10
+  zoomSpeed: 2
+  invertZoom: 1
   lockRotation: 1
   smoothSpeed: 3

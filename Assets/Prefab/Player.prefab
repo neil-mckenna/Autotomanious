@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 4282219184195651844}
   - component: {fileID: 6045765336114918918}
   - component: {fileID: 5061847375031646964}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: EyeMask
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -127,7 +127,7 @@ GameObject:
   - component: {fileID: 4731026337807643923}
   - component: {fileID: 3683812050131059896}
   - component: {fileID: 4998727666066037702}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: EyeHole_Right
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -164,7 +164,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1008422526379408014}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -237,9 +237,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3148010274896562406}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Feetlocation
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -270,7 +270,7 @@ GameObject:
   - component: {fileID: 1835013814608291341}
   - component: {fileID: 4068576579567532264}
   - component: {fileID: 7347080265739901230}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ring1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -357,9 +357,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5705741257942394000}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Shirt
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -394,9 +394,9 @@ GameObject:
   - component: {fileID: 4280692079220697132}
   - component: {fileID: 1194159271422809566}
   - component: {fileID: 3557984873124284460}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Pants_Lower
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -483,9 +483,9 @@ GameObject:
   - component: {fileID: 5503171537251419745}
   - component: {fileID: 4870716315905109036}
   - component: {fileID: 6222018624780931613}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Belt
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -573,9 +573,9 @@ GameObject:
   - component: {fileID: 6435540622691185970}
   - component: {fileID: 4242296140877048227}
   - component: {fileID: 2884447049184452184}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Body
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -662,7 +662,7 @@ GameObject:
   - component: {fileID: 7081212954060397606}
   - component: {fileID: 3715725097493614077}
   - component: {fileID: 6429709231906129495}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ring2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -752,7 +752,7 @@ GameObject:
   - component: {fileID: 7682915944444741986}
   - component: {fileID: 8315685943877781848}
   - component: {fileID: 3431083631446032298}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Buckle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -789,7 +789,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4206972264007088592}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -863,7 +863,7 @@ GameObject:
   - component: {fileID: 9015516264821446373}
   - component: {fileID: 4972880370309373104}
   - component: {fileID: 9197285656175961340}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: EyeHole_Left
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -900,7 +900,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4549886328456301210}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -973,9 +973,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6303732978076658161}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Specifics
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1012,9 +1012,9 @@ GameObject:
   - component: {fileID: 7540225460309269727}
   - component: {fileID: 7044729268676778956}
   - component: {fileID: 3760755847953772601}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Hat
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1102,9 +1102,9 @@ GameObject:
   - component: {fileID: 8415489127789286512}
   - component: {fileID: 7841885754107720369}
   - component: {fileID: 3183162355997091309}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Mouth
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1139,7 +1139,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4880996008291882694}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -1192,7 +1192,7 @@ GameObject:
   - component: {fileID: 6578818259171117055}
   - component: {fileID: 1686346915044751658}
   - component: {fileID: 1864776089333595973}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Brim
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1304,9 +1304,9 @@ GameObject:
   - component: {fileID: 3920342609985925279}
   - component: {fileID: 5172441789351835028}
   - component: {fileID: 1984526429512196771}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: LeftEye
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1393,7 +1393,7 @@ GameObject:
   - component: {fileID: 3987770446472389268}
   - component: {fileID: 3465831457454451215}
   - component: {fileID: 354004083041006557}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ring3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1487,7 +1487,8 @@ GameObject:
   - component: {fileID: 7194287309770402544}
   - component: {fileID: 4702768721108001129}
   - component: {fileID: 270883912692326385}
-  m_Layer: 0
+  - component: {fileID: 5927747060325846979}
+  m_Layer: 7
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -1524,8 +1525,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Drive
   feetLocation: {fileID: 3148010274896562406}
-  walkSpeed: 5
-  runSpeed: 14
+  walkSpeed: 3
+  runSpeed: 10
   rotationSpeed: 100
   jumpForce: 3
   gravity: -10
@@ -1575,12 +1576,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerWeapon
   smokeBombPrefab: {fileID: 5202096436844449336, guid: 0d707454159ed5544b1f3e319c60bf10, type: 3}
   flashBangPrefab: {fileID: 6111296851727178311, guid: acda6de179da0c546a5865b50e1d5a08, type: 3}
-  maxSmokeBombs: 3
-  maxFlashBangs: 2
-  throwForce: 15
+  maxSmokeBombs: 10
+  maxFlashBangs: 10
+  throwForce: 20
   throwCooldown: 1
   smokeUITextName: SmokeBombCounterText
-  flashUITextName: FlashBangCountText
+  flashUITextName: FlashBangCounterText
   throwSound: {fileID: 8300000, guid: 6c74c30a815c56f438bfdb81831b40e7, type: 3}
   throwVolume: 0.7
   inputActionAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
@@ -1751,6 +1752,27 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &5927747060325846979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5803291071894277873}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da656002dc623d049ba5b5a6affc4e92, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FollowCamera
+  target: {fileID: 0}
+  distance: 5
+  height: 2.5
+  minDistance: 3
+  maxDistance: 10
+  zoomSpeed: 2
+  invertZoom: 1
+  lockRotation: 1
+  smoothSpeed: 5
 --- !u!1 &7538911456638443412
 GameObject:
   m_ObjectHideFlags: 0
@@ -1762,9 +1784,9 @@ GameObject:
   - component: {fileID: 3381912277466771400}
   - component: {fileID: 4844627007064721236}
   - component: {fileID: 600824439018106441}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: RightEye
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1851,9 +1873,9 @@ GameObject:
   - component: {fileID: 669939723166220657}
   - component: {fileID: 4385345732971663486}
   - component: {fileID: 5655825301142582034}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Pants_Upper
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1940,7 +1962,7 @@ GameObject:
   - component: {fileID: 2951621034245878249}
   - component: {fileID: 642638890177326046}
   - component: {fileID: 8480214737161627066}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Ring4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2027,7 +2049,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2872631964319508979}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: BaseCharacter
   m_TagString: Player
   m_Icon: {fileID: 0}

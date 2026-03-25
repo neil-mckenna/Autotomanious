@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class Drive : MonoBehaviour
@@ -64,6 +66,22 @@ public class Drive : MonoBehaviour
     public bool IsMoving { get; private set; }
     public Vector3 Position => transform.position;
 
+    private void OnEnable()
+    {
+        // Safe version with null check
+        if (controller != null)
+        {
+            controller.Move(Vector3.zero);
+        }
+        verticalVelocity = 0f;
+
+        // Start coroutine safely
+        if (gameObject.activeInHierarchy)
+        {
+            StartCoroutine(SnapToGround());
+        }
+    }
+
     void Start()
     {
         // Add CharacterController
@@ -74,6 +92,12 @@ public class Drive : MonoBehaviour
             controller.height = 2f;
             controller.radius = 0.5f;
             controller.center = new Vector3(0, 1, 0);
+
+            
+      
+            
+       
+
         }
 
         // Add AudioSource
@@ -106,6 +130,53 @@ public class Drive : MonoBehaviour
             defaultZoom = currentZoom;
             Debug.Log($"Camera initialized. FOV: {currentZoom}");
         }
+    }
+
+
+    IEnumerator SnapToGround()
+    {
+        yield return null; // Wait one frame
+
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position, Vector3.down, out hit, 100f))
+        {
+            transform.position = new Vector3(transform.position.x, hit.point.y + 0.1f, transform.position.z);
+            Debug.Log($"Player placed on ground at Y={hit.point.y}");
+        }
+
+        // Reset velocity
+        Drive drive = GetComponent<Drive>();
+        if (drive != null)
+        {
+            drive.verticalVelocity = 0f;
+        }
+    }
+
+
+    public void ResetMovement()
+    {
+        // Reset velocity
+        verticalVelocity = 0f;
+
+        // Reset grounded state
+        isGrounded = true;
+        wasGrounded = true;
+
+        // Reset noise timer
+        nextNoiseTime = 0f;
+
+        // Reset CharacterController velocity
+        if (controller != null)
+        {
+            controller.Move(Vector3.zero);
+        }
+
+        // Reset movement flags
+        IsMoving = false;
+        IsRunning = false;
+        CurrentSpeed = 0f;
+
+        //Debug.Log("Drive movement reset");
     }
 
     void Update()
@@ -267,20 +338,11 @@ public class Drive : MonoBehaviour
         Guard[] allGuards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
         //Debug.Log($"Found {allGuards.Length} guards in scene");
 
-        if (allGuards.Length == 0)
-        {
-            Debug.LogWarning("No guards found in scene! Make sure guards are spawned.");
-            return;
-        }
-
         // 3. Tell each guard about the noise
         foreach (Guard guard in allGuards)
         {
-            float distanceToGuard = Vector3.Distance(transform.position, guard.transform.position);
-            //Debug.Log($"Guard: {guard.name} at distance {distanceToGuard:F1}");
-            //Debug.Log($"Notifying guard: {guard.name} at position {guard.transform.position}");
 
-            guard.HearNoise(transform.position, soundTravelRadius * guard.guardHearingSensitivity);
+            guard.currentBrain.HearNoise(transform.position, soundTravelRadius * guard.guardHearingSensitivity);
 
             // Draw debug line to show which guards were notified
             Debug.DrawLine(transform.position, guard.transform.position, Color.cyan, 1.0f);

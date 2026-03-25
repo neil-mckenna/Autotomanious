@@ -4,20 +4,22 @@ using System.Collections;
 
 public class Zombie : AIBrain
 {
-    [Header("Zombie Settings (BASELINE - SUPER DUMB)")]
+    [Header("Zombie Settings")]
     [SerializeField] private float shamblingSpeed = 1.2f;
+    [SerializeField] private float runningSpeed = 5f;
     [SerializeField] private float detectionAngle = 60f;
     [SerializeField] private float wanderRadius = 10f;
     [SerializeField] private float waitTime = 2.5f;
     [SerializeField] private float forgetTime = 8f;
 
     [Header("Zombie Attack")]
-    [SerializeField] private float killRange = 1.5f;  // Will override guard's kill range
+    [SerializeField] private float killRange = 1.5f;
 
     [Header("Audio")]
     [SerializeField] private AudioClip[] idleGroans;
     [SerializeField] private AudioClip[] chaseGroans;
     [SerializeField] private AudioClip attackSound;
+    [SerializeField] private AudioClip biteSound;
     [SerializeField] private float groanInterval = 3f;
     [SerializeField] private float groanVolume = 0.7f;
     [SerializeField] private float chaseGroanMultiplier = 0.5f;
@@ -30,18 +32,23 @@ public class Zombie : AIBrain
     private float chaseTimer;
     private AudioSource audioSource;
     private bool hasInitialised = false;
-    private bool hasKilledPlayer = false;
+    private float originalShambleSpeed;
 
     public bool IsChasing()
     {
         return isChasing;
     }
 
+    protected override void OnPlayerSet()
+    {
+        Debug.Log($"Zombie: Player set - BRAINS!");
+    }
+
     public override void Init(Guard guard)
     {
         this.guard = guard;
 
-        // Ensure we have the agent (from AIBrain base class)
+        // Ensure we have the agent
         if (agent == null)
         {
             agent = GetComponent<NavMeshAgent>();
@@ -49,10 +56,13 @@ public class Zombie : AIBrain
                 agent = gameObject.AddComponent<NavMeshAgent>();
         }
 
+        // Store speeds
+        originalShambleSpeed = shamblingSpeed;
+        originalSpeed = shamblingSpeed;
         agent.speed = shamblingSpeed;
         agent.stoppingDistance = 0.5f;
 
-        //
+        // Warp to NavMesh
         WarpToNavMesh();
 
         // Setup audio
@@ -67,20 +77,17 @@ public class Zombie : AIBrain
         groanTimer = Random.Range(1f, groanInterval);
         hasInitialised = true;
 
-        Debug.Log("Zombie brain attached to guard");
+        Debug.Log("Zombie initialized - slow shambler, fast runner!");
     }
 
- 
     private void WarpToNavMesh()
     {
         if (agent == null) return;
 
-        // Try to find a valid position on NavMesh
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 10f, NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
-            Debug.Log($"Zombie warped to NavMesh at {hit.position}");
         }
         else
         {
@@ -91,60 +98,77 @@ public class Zombie : AIBrain
     public override void Think()
     {
         if (!hasInitialised || agent == null || guard == null) return;
+        if (isStunned) return;
 
         // Make zombie sounds
         HandleZombieSounds();
 
-        // Check player (via guard)
-        Transform player = guard.PlayerTransform;
-        if (player == null)
+        // Check for kill (uses base class method)
+        CheckForKill();
+
+        // Check player (using base class playerTransform)
+        if (!TryGetPlayer(out Player currentPlayer))
         {
             Wander();
             return;
         }
 
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        float distanceToPlayer = Vector3.Distance(transform.position, Player.transform.position);
 
-        // KILL PLAYER IF CLOSE ENOUGH (using guard's kill mechanism)
-        if (distanceToPlayer <= killRange && !hasKilledPlayer)
-        {
-            KillPlayer();
-            return;
-        }
+        // Use base class vision detection
+        bool hasLineOfSight = HasLineOfSightToPlayer();
+        bool playerInCone = IsPlayerInCone(Player.transform);
+        float currentDetectionRange = guard.GetDetectionRange();
 
-        // Check if player is in vision cone
-        bool playerInCone = IsPlayerInCone(player);
-
-        // CHASE if player is within detection range AND in cone
-        if (distanceToPlayer <= guard.GetDetectionRange() && playerInCone)
+        // CHASE if player is seen
+        if (hasLineOfSight && playerInCone && distanceToPlayer <= currentDetectionRange)
         {
             if (!isChasing)
             {
                 isChasing = true;
                 chaseTimer = 0f;
-                Debug.LogWarning($"Zombie SEES player at distance {distanceToPlayer:F1}! CHASING!");
+                agent.speed = runningSpeed;
+                Debug.Log($"ZOMBIE SEES YOU! Running at {runningSpeed}!");
             }
-            Chase(player);
+            Chase(Player.transform);
             return;
         }
 
-        // If chasing but lost player
+        // Sound detection (uses base class suspicious)
+        if (isSuspicious && suspiciousTimer > 0)
+        {
+            suspiciousTimer -= Time.deltaTime;
+            if (!isChasing)
+            {
+                isChasing = true;
+                chaseTimer = 0f;
+                agent.speed = runningSpeed;
+                Debug.Log($"ZOMBIE HEARD NOISE! Investigating at {suspiciousPosition}!");
+            }
+            Seek(suspiciousPosition);
+            return;
+        }
+
+        // Lost player
         if (isChasing)
         {
             chaseTimer += Time.deltaTime;
             if (chaseTimer >= forgetTime)
             {
                 isChasing = false;
+                agent.speed = shamblingSpeed;
+                ResetSuspicious();  // Reset using base method
                 Debug.Log("Zombie lost player - going back to shambling");
             }
             else
             {
-                Seek(lastKnownPlayerPosition);
+                if (lastKnownPlayerPosition != Vector3.zero)
+                    Seek(lastKnownPlayerPosition);
                 return;
             }
         }
 
-        // Default: dumb wandering
+        // Default: wander
         Wander();
     }
 
@@ -155,7 +179,8 @@ public class Zombie : AIBrain
         return angle <= detectionAngle;
     }
 
-    private void KillPlayer()
+    // Override kill for zombie-specific sounds
+    public override void KillPlayer()
     {
         if (hasKilledPlayer) return;
         hasKilledPlayer = true;
@@ -166,17 +191,26 @@ public class Zombie : AIBrain
             audioSource.PlayOneShot(attackSound, groanVolume * 1.2f);
         }
 
-        Debug.Log("Zombie KILLED the player!");
-
-        // Use guard's kill method (which handles player death)
-        if (guard != null && guard.PlayerTransform != null)
+        // Play bite sound for zombie
+        if (biteSound != null && audioSource != null)
         {
-            Player player = guard.PlayerTransform.GetComponent<Player>();
-            if (player != null)
-            {
-                player.Die();
-            }
+            StartCoroutine(PlayBiteSound());
         }
+
+        Debug.LogWarning($"{gameObject.name} BIT and KILLED the player!");
+
+
+        if (Player != null)
+        {
+            Player.Die(gameObject.name);
+        }
+        
+    }
+
+    private IEnumerator PlayBiteSound()
+    {
+        yield return new WaitForSeconds(0.1f);
+        audioSource.PlayOneShot(biteSound, groanVolume * 1.5f);
     }
 
     private void HandleZombieSounds()
@@ -263,21 +297,70 @@ public class Zombie : AIBrain
         lastKnownPlayerPosition = target.position;
     }
 
-    // Add to Zombie.cs
-    public void Stun(float duration)
+    // Override stun to restore zombie-specific speed
+    protected override IEnumerator StunCoroutine(float duration)
     {
-        StartCoroutine(StunCoroutine(duration));
-    }
+        isStunned = true;
 
-    private IEnumerator StunCoroutine(float duration)
-    {
-        // Store original speed
-        float originalSpeed = agent.speed;
-        agent.speed = 0.5f; // Very slow while stunned
+        float storedSpeed = agent.speed;
+        agent.speed = 0f;
+        agent.isStopped = true;
+        agent.ResetPath();
+
+        ApplyStunVisual();
+        Debug.Log($"Zombie STUNNED for {duration} seconds!");
 
         yield return new WaitForSeconds(duration);
 
-        // Restore speed
-        agent.speed = originalSpeed;
+        // Restore speed based on whether chasing or not
+        agent.speed = isChasing ? runningSpeed : shamblingSpeed;
+        agent.isStopped = false;
+        RemoveStunVisual();
+
+        isStunned = false;
+        Debug.Log($"Zombie recovered from stun");
+    }
+
+    // Override visual feedback for zombie colors
+    protected override void ApplyStunVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.yellow;
+    }
+
+    protected override void RemoveStunVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.white;
+    }
+
+    protected override void ApplyBlindVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.gray;
+    }
+
+    protected override void RemoveBlindVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.white;
+    }
+
+    protected override void ApplySlowVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.cyan;
+    }
+
+    protected override void RemoveSlowVisual()
+    {
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+            renderer.material.color = Color.white;
     }
 }

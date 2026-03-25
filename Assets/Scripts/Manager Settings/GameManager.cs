@@ -3,17 +3,74 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 public class GameManager : MonoBehaviour
 {
     #region Properties, Fields
 
-
     // Singleton for easy access
     public static GameManager Instance { get; private set; }
 
-    [Header("HUD Elements - Will be auto-found")]
+    // Player Singleton
 
+    private Player currentPlayer;
+    public Player GetPlayer() => currentPlayer;
+
+    // event delegate
+    public System.Action<Player> OnPlayerRegistered;
+
+    #region Player Registration
+
+    public void RegisterPlayer(Player player)
+    {
+        if (player == null)
+        {
+            Debug.LogError("Attempted to register null player!");
+            return;
+        }
+
+        currentPlayer = player;
+        Debug.Log($"Player registered: {player.name}");
+
+        // Notify all guards about the player
+        NotifyGuardsOfPlayer();
+
+        // Trigger event for any other systems that need to know
+        OnPlayerRegistered?.Invoke(player);
+    }
+
+    private void NotifyGuardsOfPlayer()
+    {
+        // Find all guards in the scene
+        Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
+        Debug.Log($"Notifying {guards.Length} guards about player");
+
+        foreach (var guard in guards)
+        {
+            if (guard != null && guard.currentBrain != null)
+            {
+                guard.currentBrain.SetPlayer(currentPlayer);
+            }
+        }
+    }
+
+    public void RefreshGuardReferences()
+    {
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("Can't refresh guards - no player registered");
+            return;
+        }
+
+        NotifyGuardsOfPlayer();
+    }
+
+    #endregion
+
+
+
+    [Header("HUD Elements - Will be auto-found")]
     [SerializeField] private TextMeshProUGUI HUDTimerText;
     [SerializeField] private TextMeshProUGUI HUDDeathsText;
     [SerializeField] private TextMeshProUGUI HUDEscapesText;
@@ -23,7 +80,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI HUDRetriesText;
 
     [SerializeField] private GameObject TopBar;
-
 
     [Header("Victory Panel - Will be auto-found")]
     [SerializeField] private GameObject victoryPanel;
@@ -51,6 +107,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gameOverTotalZoneTimeText;
     [SerializeField] private GameObject gameOverZoneStatsPanel;
 
+    [Header("Pause Settings")]
+    [SerializeField] private KeyCode pauseKey = KeyCode.Escape;
+    [SerializeField] private bool isPaused = false;
+
     [Header("Stats Tracking")]
     [SerializeField] private float levelStartTime;
     [SerializeField] private float currentTime;
@@ -63,16 +123,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int retries = 0;
 
     [SerializeField] private float totalAlertTime = 0f;
-    //[SerializeField] private float currentAlertStartTime = 0f;
 
     [Header("Victory Panel - Zone Stats")]
-    [SerializeField] private TextMeshProUGUI startAreaTimeText; 
-    [SerializeField] private TextMeshProUGUI hutAreaTimeText;   
-    [SerializeField] private TextMeshProUGUI mazeAreaTimeText;    
-    [SerializeField] private TextMeshProUGUI lastAreaTimeText;     
+    [SerializeField] private TextMeshProUGUI startAreaTimeText;
+    [SerializeField] private TextMeshProUGUI hutAreaTimeText;
+    [SerializeField] private TextMeshProUGUI mazeAreaTimeText;
+    [SerializeField] private TextMeshProUGUI lastAreaTimeText;
     [SerializeField] private TextMeshProUGUI totalZoneTimeText;
     [SerializeField] private GameObject zoneStatsPanel;
-
 
     [Header("Best Records")]
     [SerializeField] private float fastestEscape = Mathf.Infinity;
@@ -83,14 +141,17 @@ public class GameManager : MonoBehaviour
     [Header("Scene Names")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
 
+    [Header("Player Reference")]
+    //[SerializeField] private Transform playerTransform;
+
     private bool isGameActive = true;
-    private GameObject player;
 
     // Public getters
     public bool IsGameActive() => isGameActive;
     public float GetCurrentTime() => currentTime;
     public int GetDeathCount() => deathCount;
     public int GetAlertCount() => alertCount;
+    //public Transform GetPlayerTransform() => playerTransform;
 
     #endregion
 
@@ -115,12 +176,10 @@ public class GameManager : MonoBehaviour
     {
         levelStartTime = Time.time;
         LoadBestRecords();
-        FindPlayer();
+
 
         // Find UI elements
         FindUIReferences();
-
-        //Debug.Log("=== GAME STARTED ===");
     }
 
     private void OnEnable()
@@ -138,8 +197,6 @@ public class GameManager : MonoBehaviour
     #region OnScene Event
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        //Debug.Log("Scene loaded - finding UI elements...");
-
         // Store current retries before reset
         int currentRetries = retries;
 
@@ -149,6 +206,7 @@ public class GameManager : MonoBehaviour
         // Reset game state 
         ResetGame();
 
+
         // Restore retries
         retries = currentRetries;
 
@@ -156,17 +214,26 @@ public class GameManager : MonoBehaviour
         if (HUDRetriesText != null)
             HUDRetriesText.text = $"Retries: {retries}";
 
-        //Debug.Log($"Retries restored to: {retries}");
+        // Reset pause state on scene load
+        isPaused = false;
+        Time.timeScale = 1f;
+
+        if (currentPlayer != null)
+        {
+            // Small delay to ensure all guards have spawned
+            Invoke(nameof(RefreshGuardReferences), 0.1f);
+        }
+
     }
 
     #endregion
+
+    
 
     #region UI
 
     private void FindUIReferences()
     {
-       // Debug.Log("=== Finding UI References ===");
-
         // Find the main canvas
         Canvas canvas = FindAnyObjectByType<Canvas>();
         if (canvas == null)
@@ -175,24 +242,17 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // Log all canvas children to help debug naming issues
-        //Debug.Log("Canvas contains:");
         LogAllChildren(canvas.transform, 0);
 
         // ----- HUD ELEMENTS  ---
-        // string sensistivity will break otherwise
- 
         HUDTimerText = FindTextInChildren(canvas.transform, "HUDTimerText");
         HUDDeathsText = FindTextInChildren(canvas.transform, "HUDDeathsText");
         HUDEscapesText = FindTextInChildren(canvas.transform, "HUDEscapesText");
         HUDAlertText = FindTextInChildren(canvas.transform, "HUDAlertText");
-        
         aiDisplayText = FindTextInChildren(canvas.transform, "AIDisplayText");
         HUDAlertTimeText = FindTextInChildren(canvas.transform, "HUDAlertTime");
         HUDRetriesText = FindTextInChildren(canvas.transform, "HUDRetriesText");
 
-       
-        // background for top menu
         TopBar = FindChildByName(canvas.transform, "TopBar")?.gameObject;
 
         // ----- UI PANELS -----
@@ -211,7 +271,6 @@ public class GameManager : MonoBehaviour
 
             victoryReplayButton = FindButtonInChildren(victoryPanel.transform, "victoryReplayButton");
             victoryQuitButton = FindButtonInChildren(victoryPanel.transform, "victoryQuitButton");
-
 
             startAreaTimeText = FindTextInChildren(victoryPanel.transform, "StartAreaTimeText");
             hutAreaTimeText = FindTextInChildren(victoryPanel.transform, "HutAreaTimeText");
@@ -249,14 +308,6 @@ public class GameManager : MonoBehaviour
         // Hide panels initially
         if (victoryPanel != null) victoryPanel.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
-
-        // Report what was found
-        //Debug.Log($"=== UI Find Results ===");
-
-        //Debug.Log($"HUD: Timer={(HUDTimerText != null)}, Deaths={(HUDDeathsText != null)}, Alerts={(HUDAlertText != null)}");
-
-       
-        //Debug.Log($"Panels: Victory={(victoryPanel != null)}, GameOver={(gameOverPanel != null)}");
     }
 
     // Helper: Find a TextMeshProUGUI component in children by name
@@ -268,7 +319,6 @@ public class GameManager : MonoBehaviour
             TextMeshProUGUI text = child.GetComponent<TextMeshProUGUI>();
             if (text != null)
             {
-                //Debug.Log($"Found text: {child.name}");
                 return text;
             }
         }
@@ -285,7 +335,6 @@ public class GameManager : MonoBehaviour
             Button button = child.GetComponent<Button>();
             if (button != null)
             {
-                //Debug.Log($"Found button: {child.name}");
                 return button;
             }
         }
@@ -293,7 +342,7 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
-    // Helper: Find child by name, recursivly
+    // Helper: Find child by name, recursively
     private Transform FindChildRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
@@ -325,51 +374,39 @@ public class GameManager : MonoBehaviour
         string indent = new string(' ', depth * 2);
         foreach (Transform child in parent)
         {
-            //Debug.Log($"{indent}- {child.name}");
             LogAllChildren(child, depth + 1);
         }
     }
 
     #endregion
 
-    #region Find Player 
-
-    // find teh player in hierachy
-    private void FindPlayer()
-    {
-        player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null)
-        {
-            player = GameObject.Find("Player");
-        }
-    }
-    #endregion
-
     #region Updates
 
     private void Update()
     {
-        if (isGameActive)
+        // Check for Escape key using new input system
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            TogglePause();
+        }
+
+        if (isGameActive && !isPaused)
         {
             currentTime = Time.time - levelStartTime;
             UpdateTimer();
-
             CalculateStealthScore();
         }
     }
-
-    // convert value to realtime
 
     private void UpdateTimer()
     {
         int minutes = Mathf.FloorToInt(currentTime / 60);
         int seconds = Mathf.FloorToInt(currentTime % 60);
-   
+
         if (HUDTimerText != null)
         {
             HUDTimerText.text = $"{minutes:00}:{seconds:00}";
-
-        }        
+        }
     }
 
     private void CalculateStealthScore()
@@ -386,15 +423,11 @@ public class GameManager : MonoBehaviour
 
     private void UpdateAllUI()
     {
-
-
         if (HUDDeathsText != null) HUDDeathsText.text = $"Deaths: {deathCount}";
         if (HUDAlertText != null) HUDAlertText.text = $"Alerts: {alertCount}";
         if (HUDEscapesText != null) HUDEscapesText.text = $"Escapes: {escapeCount}";
         if (HUDTimerText != null) HUDTimerText.text = "00:00";
-
         if (aiDisplayText != null) aiDisplayText.text = $"Current AI: {AISettings.Instance.selectedAIType.ToString()}";
-
     }
 
     #endregion
@@ -405,24 +438,17 @@ public class GameManager : MonoBehaviour
     {
         if (ZoneManager.Instance == null) return;
 
-        // Get all stats
         var stats = ZoneManager.Instance.GetZoneStats();
 
-        // Update zone times using the formatted helper
         if (startAreaTimeText != null)
             startAreaTimeText.text = GetZoneTimeWithDecimal(stats, 1);
-
         if (hutAreaTimeText != null)
             hutAreaTimeText.text = GetZoneTimeWithDecimal(stats, 2);
-
         if (mazeAreaTimeText != null)
             mazeAreaTimeText.text = GetZoneTimeWithDecimal(stats, 3);
-
         if (lastAreaTimeText != null)
             lastAreaTimeText.text = GetZoneTimeWithDecimal(stats, 4);
 
-
-        // Calculate total
         float totalTime = 0f;
         foreach (var zone in stats)
         {
@@ -440,7 +466,6 @@ public class GameManager : MonoBehaviour
             zoneStatsPanel.SetActive(true);
     }
 
-    // for game over version
     private void UpdateGameOverZoneStatsDisplay()
     {
         if (ZoneManager.Instance == null) return;
@@ -449,13 +474,10 @@ public class GameManager : MonoBehaviour
 
         if (gameOverStartAreaTimeText != null)
             gameOverStartAreaTimeText.text = GetZoneTimeWithDecimal(stats, 1);
-
         if (gameOverHutAreaTimeText != null)
             gameOverHutAreaTimeText.text = GetZoneTimeWithDecimal(stats, 2);
-
         if (gameOverMazeAreaTimeText != null)
             gameOverMazeAreaTimeText.text = GetZoneTimeWithDecimal(stats, 3);
-
         if (gameOverLastAreaTimeText != null)
             gameOverLastAreaTimeText.text = GetZoneTimeWithDecimal(stats, 4);
 
@@ -474,14 +496,13 @@ public class GameManager : MonoBehaviour
             gameOverZoneStatsPanel.SetActive(true);
     }
 
-
     private string GetZoneTimeWithDecimal(List<ZoneManager.ZoneData> stats, int zoneNumber)
     {
         foreach (var zone in stats)
         {
             if (zone.zoneNumber == zoneNumber)
             {
-                return $"{zone.timeSpent:F2}s"; // Shows like "8.77s"
+                return $"{zone.timeSpent:F2}s";
             }
         }
         return "0.00s";
@@ -497,7 +518,6 @@ public class GameManager : MonoBehaviour
 
     #region Guards
 
-    // how many time spotted
     public void GuardAlerted()
     {
         if (!isGameActive) return;
@@ -511,14 +531,13 @@ public class GameManager : MonoBehaviour
 
     public void GuardLostPlayer()
     {
-
+        // Can be used for tracking
     }
 
     #endregion
 
     #region Player
 
-    // time amount spotted
     public void PlayerSpotted()
     {
         if (!isGameActive) return;
@@ -532,13 +551,10 @@ public class GameManager : MonoBehaviour
         deathCount++;
         Debug.Log($"Player died: {cause}. Death #{deathCount}");
 
-
-
         if (HUDDeathsText != null)
             HUDDeathsText.text = $"Deaths: {deathCount}";
 
         isGameActive = false;
-
         ShowGameOver();
     }
 
@@ -561,12 +577,10 @@ public class GameManager : MonoBehaviour
 
         CheckNewRecords(finalTime, finalStealth, alertCount, deathCount);
 
-
         if (HUDEscapesText != null)
             HUDEscapesText.text = $"Escapes: {escapeCount}";
 
         ShowVictory(finalTime, finalStealth);
-
         isGameActive = false;
     }
 
@@ -626,32 +640,37 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        gameOverPanel.SetActive(true);
-
-        FreezeGame();
-
-        if (gameOverTimeText != null)
-            gameOverTimeText.text = $"Time: {FormatTime(currentTime)}";
-
-        if (gameOverAlertsText != null)
-            gameOverAlertsText.text = $"Alerts: {alertCount}";
-
-        // duplicate as end method
-        UpdateGameOverZoneStatsDisplay();
-
-        if (gameOverRetryButton != null)
+        if (!isPaused)
         {
-            gameOverRetryButton.onClick.RemoveAllListeners();
-            gameOverRetryButton.onClick.AddListener(RestartGame);
-        }
+            gameOverPanel.SetActive(true);
+            FreezeGame();
 
-        if (gameOverMenuButton != null)
-        {
-            gameOverMenuButton.onClick.RemoveAllListeners();
-            gameOverMenuButton.onClick.AddListener(GoToMainMenu);
-        }
+            if (gameOverTimeText != null)
+                gameOverTimeText.text = $"Time: {FormatTime(currentTime)}";
 
-        isGameActive = false;
+            if (gameOverAlertsText != null)
+                gameOverAlertsText.text = $"Alerts: {alertCount}";
+
+            UpdateGameOverZoneStatsDisplay();
+
+            if (gameOverRetryButton != null)
+            {
+                var btnText = gameOverRetryButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "RETRY";
+                gameOverRetryButton.onClick.RemoveAllListeners();
+                gameOverRetryButton.onClick.AddListener(RestartGame);
+            }
+
+            if (gameOverMenuButton != null)
+            {
+                var btnText = gameOverMenuButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "MAIN MENU";
+                gameOverMenuButton.onClick.RemoveAllListeners();
+                gameOverMenuButton.onClick.AddListener(GoToMainMenu);
+            }
+
+            isGameActive = false;
+        }
     }
 
     private void ShowVictory(float time, float stealth)
@@ -659,7 +678,6 @@ public class GameManager : MonoBehaviour
         if (victoryPanel == null) return;
 
         victoryPanel.SetActive(true);
-
         FreezeGame();
 
         string timeString = FormatTime(time);
@@ -692,7 +710,6 @@ public class GameManager : MonoBehaviour
                 bestStealthScoreText.text = "Best Stealth: 0";
         }
 
-        // call zones
         UpdateZoneStatsDisplay();
 
         if (victoryReplayButton != null)
@@ -722,7 +739,6 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.SetInt("FewestAlerts", fewestAlerts);
         PlayerPrefs.SetInt("FewestDeaths", fewestDeaths);
         PlayerPrefs.Save();
-
         Debug.Log("Records saved to PlayerPrefs!");
     }
 
@@ -732,27 +748,19 @@ public class GameManager : MonoBehaviour
         bestStealthRating = PlayerPrefs.GetFloat("BestStealth", 0f);
         fewestAlerts = PlayerPrefs.GetInt("FewestAlerts", int.MaxValue);
         fewestDeaths = PlayerPrefs.GetInt("FewestDeaths", int.MaxValue);
-
-        //Debug.Log("Records loaded from PlayerPrefs");
     }
 
     public void ResetBestScores()
     {
-        // Reset to default values
         fastestEscape = Mathf.Infinity;
         bestStealthRating = 0f;
         fewestAlerts = int.MaxValue;
         fewestDeaths = int.MaxValue;
-
-        // Save the reset values
         SaveBestRecords();
-
         Debug.Log("Best scores have been reset!");
 
-        // 
         if (bestTimeText != null)
             bestTimeText.text = "Best Time: --:--";
-
         if (bestStealthScoreText != null)
             bestStealthScoreText.text = "Best Stealth: 0";
     }
@@ -767,11 +775,8 @@ public class GameManager : MonoBehaviour
 
     #region Resets, Navigation
 
-    // hard reset game 
     private void ResetGame()
     {
-        //Debug.Log("Resetting Game State");
-
         levelStartTime = Time.time;
         currentTime = 0f;
 
@@ -783,20 +788,16 @@ public class GameManager : MonoBehaviour
         if (ZoneManager.Instance != null)
         {
             ZoneManager.Instance.ResetStats();
-            Debug.Log("Zone stats reset for new playthrough");
         }
 
         if (victoryPanel != null) victoryPanel.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
-        FindPlayer();
+
         UpdateAllUI();
 
         if (HUDTimerText != null) HUDTimerText.text = "00:00";
-
     }
-
-    
 
     public void RestartLevel()
     {
@@ -809,41 +810,39 @@ public class GameManager : MonoBehaviour
         if (ZoneManager.Instance != null)
         {
             ZoneManager.Instance.ResetStats();
-            Debug.Log("Zone stats reset for new playthrough");
         }
+
+        isGameActive = true;
+        deathCount = 0;
+        escapeCount = 0;
+        alertCount = 0;
+        timesSpotted = 0;
+ 
 
         if (HUDRetriesText != null)
             HUDRetriesText.text = $"Retries: {retries}";
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-
-
     }
 
     public void GoToMainMenu()
     {
         UnfreezeGame();
 
-        // reset deaths
         deathCount = 0;
         alertCount = 0;
         timesSpotted = 0;
         escapeCount = 0;
         stealthScore = 0f;
         isGameActive = true;
-
-        // retries
         retries = 0;
 
         if (HUDDeathsText != null)
             HUDDeathsText.text = $"Deaths: {deathCount}";
-
         if (HUDAlertText != null)
             HUDAlertText.text = $"Alerts: {alertCount}";
-
         if (HUDEscapesText != null)
             HUDEscapesText.text = $"Escapes: {escapeCount}";
-
         if (HUDRetriesText != null)
             HUDRetriesText.text = $"Retries: {retries}";
 
@@ -857,7 +856,6 @@ public class GameManager : MonoBehaviour
     public void FreezeGame()
     {
         if (isGameFrozen) return;
-
         isGameFrozen = true;
         Time.timeScale = 0f;
         Debug.Log("Game time frozen");
@@ -866,7 +864,6 @@ public class GameManager : MonoBehaviour
     public void UnfreezeGame()
     {
         if (!isGameFrozen) return;
-
         isGameFrozen = false;
         Time.timeScale = 1f;
         Debug.Log("Game time unfrozen");
@@ -874,8 +871,74 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        UnfreezeGame();  // Ensure time is normal before reloading
+        UnfreezeGame();
         RestartLevel();
+    }
+
+    #endregion
+
+    #region Pause Menu
+
+    public void TogglePause()
+    {
+        if (isPaused)
+            ResumeGame();
+        else
+            PauseGame();
+    }
+
+    public void PauseGame()
+    {
+        if (!isGameActive) return;
+
+        isPaused = true;
+        Time.timeScale = 0f;
+
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(true);
+
+            if (gameOverTimeText != null)
+                gameOverTimeText.text = "PAUSED";
+            if (gameOverAlertsText != null)
+                gameOverAlertsText.text = "Game is paused";
+
+            if (gameOverZoneStatsPanel != null)
+                gameOverZoneStatsPanel.SetActive(false);
+
+            if (gameOverRetryButton != null)
+            {
+                var btnText = gameOverRetryButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "RESUME";
+                gameOverRetryButton.onClick.RemoveAllListeners();
+                gameOverRetryButton.onClick.AddListener(ResumeGame);
+            }
+
+            if (gameOverMenuButton != null)
+            {
+                var btnText = gameOverMenuButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "QUIT TO MENU";
+                gameOverMenuButton.onClick.RemoveAllListeners();
+                gameOverMenuButton.onClick.AddListener(GoToMainMenu);
+            }
+        }
+
+        Debug.Log("Game Paused");
+    }
+
+    public void ResumeGame()
+    {
+        if (!isPaused) return;
+
+        isPaused = false;
+        Time.timeScale = 1f;
+
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(false);
+        }
+
+        Debug.Log("Game Resumed");
     }
 
     #endregion
@@ -896,4 +959,25 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region destruction
+    public void UnregisterPlayer()
+    {
+        if (currentPlayer != null)
+        {
+            Debug.Log($"Player unregistered: {currentPlayer.name}");
+            currentPlayer = null;
+
+            // Optional: Notify guards that player is gone
+            Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
+            foreach (var guard in guards)
+            {
+                if (guard != null && guard.currentBrain != null)
+                {
+                    guard.currentBrain.SetPlayer(null);
+                }
+            }
+        }
+    }
+
+    #endregion
 }

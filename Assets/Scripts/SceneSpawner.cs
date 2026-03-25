@@ -30,77 +30,101 @@ public class SceneSpawner : MonoBehaviour
     [SerializeField] private Transform guardsParent;
 
     private List<GameObject> currentGuards = new List<GameObject>();
-    private GameObject currentPlayer;
+    private Player currentPlayer;
+    private GameObject currentPlayerGO; // Store the GameObject
 
     private void Start()
     {
         StartCoroutine(SpawnSequence());
-
     }
 
     private IEnumerator SpawnSequence()
     {
-
-        //Debug.Log("=== Starting Spawn Sequence ===");
-
         if (guardsParent == null)
         {
             GameObject parent = new GameObject("AllGuards");
             guardsParent = parent.transform;
-            //Debug.Log("Created 'AllGuards' parent object");
         }
 
+        //  Spawn player first
         SpawnPlayer();
 
-        yield return null;
+        //  Wait for player to stabilize
+        yield return new WaitForSeconds(0.5f);
 
-        if (mainCamera != null && currentPlayer != null)
+        //  Attach camera after player is stable
+        if (mainCamera != null && currentPlayerGO != null)
         {
             FollowCamera followCamera = mainCamera.GetComponent<FollowCamera>();
-
             if (followCamera != null)
             {
-                followCamera.target = currentPlayer.transform;
-                //Debug.Log("Camera following Player");
+                followCamera.SetTarget(currentPlayerGO.transform);
+                Debug.Log(" Camera attached to player after delay");
             }
             else
             {
-                //Debug.LogError("Camera doesnt have FollowCamera component");
+                Debug.LogWarning("Camera doesn't have FollowCamera component!");
             }
         }
 
+        //  Spawn guards
         SpawnAllGuards();
-
-        //Debug.Log($"=== Spawn Comeplete: {currentGuards.Count} guards, player at {currentPlayer.transform.position} ===");
-
     }
 
-    // spawn player method on player spawn point
     private void SpawnPlayer()
     {
-        if (playerPrefab == null) 
+        if (playerPrefab == null)
         {
-            //Debug.LogError("Player prefab not assigned");
+            Debug.LogError("Player prefab not assigned");
             return;
         }
 
         if (playerSpawnPoint == null)
         {
-            //Debug.LogError("Player spawn point not assigned!");
+            Debug.LogError("Player spawn point not assigned!");
             return;
         }
 
-        currentPlayer = Instantiate(playerPrefab, playerSpawnPoint.position, playerSpawnPoint.rotation);
-        currentPlayer.name = "Player";
+        currentPlayerGO = Instantiate(playerPrefab, playerSpawnPoint.position, playerSpawnPoint.rotation);
+        currentPlayerGO.name = "Player";
+        currentPlayer = currentPlayerGO.GetComponent<Player>();
 
-        //Debug.Log($"Player Spawned at {playerSpawnPoint.position}");
+        //  Force position to spawn point
+        currentPlayerGO.transform.position = playerSpawnPoint.position;
+        currentPlayerGO.transform.rotation = playerSpawnPoint.rotation;
 
+        //  Reset any movement
+        Drive drive = currentPlayerGO.GetComponent<Drive>();
+        if (drive != null)
+        {
+            drive.ResetMovement();
+        }
+
+        // Snap to ground
+        StartCoroutine(SnapToGround());
+
+        Debug.Log($"Player spawned at {playerSpawnPoint.position}");
     }
 
-    // spawn guards amount on 
+    private IEnumerator SnapToGround()
+    {
+        yield return null; // Wait one frame
+
+        if (currentPlayerGO != null)
+        {
+            RaycastHit hit;
+            if (Physics.Raycast(currentPlayerGO.transform.position, Vector3.down, out hit, 10f))
+            {
+                Vector3 newPos = currentPlayerGO.transform.position;
+                newPos.y = hit.point.y + 0.1f;
+                currentPlayerGO.transform.position = newPos;
+                Debug.Log($"Player snapped to ground at Y={newPos.y}");
+            }
+        }
+    }
+
     private void SpawnAllGuards()
     {
-        // safety checks
         if (guardPrefab == null)
         {
             Debug.LogError("Guard prefab not assigned!");
@@ -119,10 +143,8 @@ public class SceneSpawner : MonoBehaviour
             return;
         }
 
-        // initialize the enum
         AISettings.AIType selectedAI = AISettings.Instance.selectedAIType;
 
-        // FIX: Choose the correct brain prefab based on selected AI type
         AIBrain brainPrefab = null;
 
         switch (selectedAI)
@@ -134,39 +156,30 @@ public class SceneSpawner : MonoBehaviour
                 brainPrefab = behaviourTreeBrainPrefab;
                 break;
             case AISettings.AIType.Zombie:
-                brainPrefab = zombieBrainPrefab;  
+                brainPrefab = zombieBrainPrefab;
                 break;
             default:
-                brainPrefab = fsmBrainPrefab;  // Default fallback
+                brainPrefab = fsmBrainPrefab;
                 break;
         }
 
-        // spawn number of guards
         for (int i = 0; i < numberOfGuards; i++)
         {
             SpawnSingleGuard(brainPrefab, i);
         }
     }
 
-
-    // spawn guard with name, at a random spawn point, attach to parent prefab, get navmesh component, warp onto navmesh 
     private void SpawnSingleGuard(AIBrain brainPrefab, int guardIndex)
     {
-        // get a random point
         Transform spawnPoint = guardSpawnPoints[Random.Range(0, guardSpawnPoints.Length)];
 
-        // instantate
         GameObject guardGO = Instantiate(guardPrefab, spawnPoint.position, spawnPoint.rotation, guardsParent);
-
         guardGO.name = $"Guard_{guardIndex}";
 
-        NavMeshAgent agent  = guardGO.GetComponent<NavMeshAgent>();
-
+        NavMeshAgent agent = guardGO.GetComponent<NavMeshAgent>();
         if (agent != null)
         {
             agent.Warp(spawnPoint.position);
-            //Debug.Log($"Guard {guardIndex} warped to {spawnPoint.position}");
-
         }
 
         AIBrain brain = Instantiate(brainPrefab, guardGO.transform);
@@ -174,64 +187,52 @@ public class SceneSpawner : MonoBehaviour
 
         Transform[] randomWaypoints = GetRandomWaypointsForGuard(guardIndex);
 
-        // cast
-        //
-        if(brain is Zombie zombieBrain)
+        if (brain is Zombie zombieBrain)
         {
             zombieBrain.SetWaypoints(randomWaypoints);
-
-            //Debug.Log($"Guard {guardIndex} (FSM) got {randomWaypoints.Length} random waypoints");
         }
         else if (brain is FSM fsmBrain)
         {
-            
             fsmBrain.SetWaypoints(randomWaypoints);
-
-            //Debug.Log($"Guard {guardIndex} (FSM) got {randomWaypoints.Length} random waypoints");
         }
-        else if(brain is BTBrain btBrain)
+        else if (brain is BTBrain btBrain)
         {
             btBrain.SetWaypoints(randomWaypoints);
-
-            //Debug.Log($"Guard {guardIndex} (BT) got {randomWaypoints.Length} waypoints");
-
-        }
-        else
-        {
-            //Debug.Log($"Guard {guardIndex} use BT brain or something else");
         }
 
         Guard guard = guardGO.GetComponent<Guard>();
         if (guard != null)
         {
-            if(currentPlayer != null)
-            {
-                guard.SetPlayer(currentPlayer.transform);
-
-            }
-
             guard.currentBrain = brain;
-            brain.Init(guard);
+
+            if (currentPlayer != null)
+            {
+                // Use the Init with player
+                brain.Init(guard, currentPlayer);
+                Debug.Log($"Guard {guardIndex}: Initialized with player {currentPlayer.name}");
+            }
+            else
+            {
+                brain.Init(guard);
+                Debug.LogWarning($"Guard {guardIndex}: No player found!");
+            }
         }
 
         currentGuards.Add(guardGO);
-        //Debug.Log($"Guard {guardIndex} fully initialized");
     }
 
-    // just a helper to get a random location for realism and variaialibiltiy
     private Transform[] GetRandomWaypointsForGuard(int guardIndex)
     {
         int minWaypoints = 3;
         int maxWaypoints = Mathf.Min(6, allWaypoints.Length);
         int waypointCount = Random.Range(minWaypoints, maxWaypoints);
-        
+
         List<Transform> selectedWaypoints = new List<Transform>();
         List<Transform> availableWaypoints = new List<Transform>(allWaypoints);
 
         for (int i = 0; i < waypointCount && availableWaypoints.Count > 0; i++)
         {
             int randomIndex = Random.Range(0, availableWaypoints.Count);
-
             selectedWaypoints.Add(availableWaypoints[randomIndex]);
             availableWaypoints.RemoveAt(randomIndex);
         }
@@ -239,41 +240,38 @@ public class SceneSpawner : MonoBehaviour
         return selectedWaypoints.ToArray();
     }
 
-    // a button for respawn in editor, but not working
     [ContextMenu("Respawn All Guards")]
     public void RespawnAllGuards()
     {
         foreach (var guard in currentGuards)
         {
-            if(guard != null)
+            if (guard != null)
             {
                 Destroy(guard.gameObject);
             }
         }
         currentGuards.Clear();
-
         SpawnAllGuards();
     }
 
-    // a button for respawn in editor, but not working
     [ContextMenu("Respawn Player")]
-    public void RespawnGuard()
+    public void RespawnPlayer()
     {
-        if(currentPlayer != null)
+        if (currentPlayerGO != null)
         {
-            Destroy(currentPlayer);
+            Destroy(currentPlayerGO);
         }
 
         SpawnPlayer();
 
-        // re-attach camera 
-        if(mainCamera !=  null && currentPlayer != null)
+        // Re-attach camera
+        if (mainCamera != null && currentPlayerGO != null)
         {
             FollowCamera followCamera = mainCamera.GetComponent<FollowCamera>();
-
-            followCamera.target = currentPlayer.transform;
+            if (followCamera != null)
+            {
+                followCamera.SetTarget(currentPlayerGO.transform);
+            }
         }
     }
-
-   
 }

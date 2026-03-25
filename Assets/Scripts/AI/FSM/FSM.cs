@@ -6,7 +6,6 @@ public class FSM : AIBrain
 {
     #region GuardState Enum
 
-    // enum for state, add TODO ?
     private enum GuardState
     {
         None,
@@ -22,28 +21,31 @@ public class FSM : AIBrain
 
     private GuardState currentState = GuardState.Patrolling;
     private float searchTimer;
-
-    [SerializeField] private float wanderSpeed = 3.5f;
     private float searchDuration = 3f;
-
-    
     private bool hasInitialised = false;
-
     private bool wasPlayerVisible = false;
 
-    private Vector3 suspiciousPosition;
-    private float suspiciousTimer;
-    private float suspiciousDuration = 3f;
-
-    // waiitng
+    // Waiting
     private bool isWaiting = false;
     private float waitTimer = 0f;
     private float minWaitTime = 2f;
     private float maxWaitTime = 10f;
 
+    [SerializeField][Range(1f,30f)] float suspicionTimeMin = 5f;
+    [SerializeField][Range(1f,30f)] float suspicionTimeMax = 5f;
+
+    
+
+
+
     public string GetCurrentState()
     {
         return currentState.ToString();
+    }
+
+    protected override void OnPlayerSet()
+    {
+        Debug.Log($"FSM: Player set - ready to chase!");
     }
 
     #endregion
@@ -53,30 +55,60 @@ public class FSM : AIBrain
     {
         this.guard = guard;
 
+        //Debug.Log($"FSM Init called - Guard: {guard?.name}");
+
+
+        SetSuspicionTime(Random.Range(suspicionTimeMin, suspicionTimeMax));
+
         if (waypoints != null && waypoints.Length > 0)
         {
-            //Debug.Log($"FSM received {waypoints.Length} waypoints");
-            // Start at first waypoint
             currentWaypointIndex = 0;
-            if (agent != null && waypoints.Length > 0)
+            if (agent != null && waypoints[0] != null)
             {
-
                 agent.SetDestination(waypoints[0].position);
+                //Debug.Log($"FSM: Moving to first waypoint at {waypoints[0].position}");
             }
         }
         else
         {
-            //Debug.LogWarning("FSM: No waypoints found!");
+            Debug.LogWarning("FSM: No waypoints!");
         }
-        
 
         currentState = GuardState.Patrolling;
-        
-
         Invoke(nameof(StartFirstPatrol), 0.2f);
-
         hasInitialised = true;
         //Debug.Log("FSM Initialized - Starting Patrol");
+    }
+
+    // NEW: Init with player
+    public override void Init(Guard guard, Player _player)
+    {
+
+        // Call base to set guard and player
+        base.Init(guard, _player);
+
+        //Debug.Log($"FSM Init with player: {_player?.name}");
+
+        SetSuspicionTime(Random.Range(suspicionTimeMin, suspicionTimeMax));
+
+        if (waypoints != null && waypoints.Length > 0)
+        {
+            currentWaypointIndex = 0;
+            if (agent != null && waypoints[0] != null)
+            {
+                agent.SetDestination(waypoints[0].position);
+                Debug.Log($"FSM: Moving to first waypoint at {waypoints[0].position}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("FSM: No waypoints!");
+        }
+
+        currentState = GuardState.Patrolling;
+        Invoke(nameof(StartFirstPatrol), 0.2f);
+        hasInitialised = true;
+        Debug.Log("FSM Initialized - Starting Patrol");
     }
 
     private void StartFirstPatrol()
@@ -84,32 +116,30 @@ public class FSM : AIBrain
         if (agent != null && waypoints != null && waypoints.Length > 0)
         {
             agent.SetDestination(waypoints[0].position);
-            //Debug.Log($"Starting patrol to first waypoint: {waypoints[0].name}");
         }
-
     }
-
     #endregion
 
     #region Think
-
     public override void Think()
     {
+        // update this variable
+
         if (!hasInitialised || guard == null || agent == null)
         {
-            //Debug.Log($"Think() skipped - hasInitialised: {hasInitialised}, guard: {guard != null}, agent: {agent != null}");
+            Debug.LogError($" Why {hasInitialised} , {guard.name} , {agent} ?");
             return;
+
         }
 
-        // Force debug every frame
-        bool canSeePlayer = false;
-        if (guard != null)
+        
+        if (Time.frameCount % 60 == 0)
         {
-            canSeePlayer = guard.HasLineOfSightToPlayer();
-            //Debug.Log($"<<< FRAME {Time.frameCount} >>> State: {currentState}, Can see player: {canSeePlayer}");
+            Debug.Log($"FSM: State={currentState}, Player={(Player != null ? "YES" : "NO")}, SuspiciousTimer={suspiciousTimer}");
         }
 
-        //Debug.Log($"Think() - Current state: {currentState}");
+        // Check for kill every frame
+        CheckForKill();
 
         switch (currentState)
         {
@@ -127,20 +157,49 @@ public class FSM : AIBrain
                 break;
         }
     }
-
     #endregion
 
     #region Patrol
-
     private void UpdatePatrolling()
     {
-        bool canSeePlayer = guard.HasLineOfSightToPlayer();
-
-        if (canSeePlayer)
+        if (!TryGetPlayer(out Player currentPlayer))
         {
+            Wander();
+            return;
+        }
+
+        float distance = Vector3.Distance(transform.position, Player.transform.position);
+        
+
+        float angle = Vector3.Angle(transform.forward, (Player.transform.position - transform.position).normalized);
+        float halfFOV = guard.GetFieldOfView() / 2f;
+
+        // CRITICAL DEBUG - Check every frame when close
+        if (distance < guard.GetDetectionRange())
+        {
+            Debug.Log($"=== VISION CHECK ===");
+            Debug.Log($"Distance: {distance:F1} / {guard.GetDetectionRange()}");
+            Debug.Log($"Angle: {angle:F1}° / Half FOV: {halfFOV}°");
+            Debug.Log($"In FOV: {angle <= halfFOV}");
+            Debug.Log($"CanSeePlayer: {guard.CanSeePlayer}");
+            Debug.Log($"Current State: {currentState}");
+
+            // Check raycast manually
+            Vector3 direction = (Player.transform.position - transform.position).normalized;
+            RaycastHit hit;
+            if (Physics.Raycast(transform.position, direction, out hit, distance))
+            {
+                Debug.Log($"Raycast hit: {hit.transform.name} (Tag: {hit.transform.tag})");
+                Debug.Log($"Is player: {hit.transform == Player.transform}");
+            }
+        }
+
+        if (guard.CanSeePlayer)
+        {
+            Debug.Log($"SHOULD CHASE! Distance: {distance:F1} ");
             currentState = GuardState.Chasing;
-            lastKnownPlayerPosition = guard.PlayerTransform.position;
-            isWaiting = false; // Reset waiting when player spotted
+            lastKnownPlayerPosition = Player.transform.position;
+            isWaiting = false;
 
             if (!wasPlayerVisible)
             {
@@ -156,6 +215,27 @@ public class FSM : AIBrain
         }
         else
         {
+            // Log why can't see
+            if (distance <= guard.GetDetectionRange())
+            {
+                angle = Vector3.Angle(transform.forward, (Player.transform.position - transform.position).normalized);
+                if (angle > guard.GetFieldOfView() / 2f)
+                {
+                    Debug.Log($"  Player in range but OUT of FOV! Angle: {angle:F1}°, Half FOV: {guard.GetFieldOfView() / 2f}°");
+                }
+                else
+                {
+                    Debug.Log($"  Player in range and in FOV but line of sight blocked!");
+                    // Check raycast
+                    Vector3 dir = (Player.transform.position - transform.position).normalized;
+                    RaycastHit hit;
+                    if (Physics.Raycast(transform.position, dir, out hit, distance))
+                    {
+                        Debug.Log($"    Raycast hit: {hit.transform.name} (Tag: {hit.transform.tag})");
+                    }
+                }
+            }
+
             if (wasPlayerVisible)
             {
                 wasPlayerVisible = false;
@@ -173,7 +253,6 @@ public class FSM : AIBrain
         {
             Wander();
 
-            // Check if we've reached a waypoint and should start waiting
             if (agent != null && !agent.pathPending && agent.remainingDistance < 0.5f)
             {
                 if (waypoints != null && waypoints.Length > 0)
@@ -185,73 +264,63 @@ public class FSM : AIBrain
             }
         }
     }
-
     #endregion
 
     #region Waiting
-
     private void UpdateWaiting()
     {
         if (!isWaiting) return;
 
         waitTimer -= Time.deltaTime;
 
-        // Stop the agent while waiting
         if (agent != null && agent.hasPath)
         {
             agent.ResetPath();
         }
 
-        // Optional: Look around while waiting
-        transform.Rotate(0, 10 * Time.deltaTime, 0); // Slow look around
+        transform.Rotate(0, 10 * Time.deltaTime, 0);
 
-        // If wait time is up, move to next waypoint
         if (waitTimer <= 0)
         {
             isWaiting = false;
             Debug.Log("FSM: Wait time ended - moving to next waypoint");
-
-            // Move to next waypoint is handled automatically by Wander() next frame
         }
     }
-
     #endregion
 
     #region Suspicious
-    public void SetSuspicious(Vector3 position, float duration)
+    public override void SetSuspicious(Vector3 position, float duration)
     {
-        Debug.Log($"SetSuspicious called! Current state: {currentState}");
-        suspiciousPosition = position;
-        suspiciousTimer = duration;
-        suspiciousDuration = duration;
+        base.SetSuspicious(position, duration);
         currentState = GuardState.Suspicious;
         Debug.Log($"FSM Guard suspicious at {position} from noise");
     }
 
-    private void UpdateSuspicious()
+    protected override void UpdateSuspicious()
     {
+        if (Player.transform == null)
+        {
+            Wander();
+            return;
+        }
+
         suspiciousTimer -= Time.deltaTime;
         isWaiting = false;
 
-        // PHASE 1: First half - LOOK AROUND (don't move)
-        if (suspiciousTimer > suspiciousDuration / 2f)
+        // PHASE 1: First half - LOOK AROUND
+        if (suspiciousTimer > suspicionDuration / 2f)
         {
-            // Stand still and look around
             if (agent != null && agent.hasPath)
             {
                 agent.ResetPath();
             }
-
-            // Look around slowly
             transform.Rotate(0, 30 * Time.deltaTime, 0);
         }
-        // PHASE 2: Second half - INVESTIGATE with randomness
+        // PHASE 2: Second half - INVESTIGATE
         else
         {
-            // Move at slower speed while investigating
-            agent.speed = wanderSpeed * 0.7f;
+            agent.speed = guard.GetDetectionRange() * 0.5f; // Half speed when investigating
 
-            // Move to random area around noise
             if (!agent.hasPath || agent.remainingDistance < 1.0f)
             {
                 float randomAngle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
@@ -268,102 +337,90 @@ public class FSM : AIBrain
             }
         }
 
-        // Check if player is in grass FIRST
+        // Check if we see the player
+        
         bool playerInGrass = IsPlayerInGrass();
 
-        // Only check line of sight
-        bool canSeePlayer = guard.HasLineOfSightToPlayer();
-
-        if (canSeePlayer)
+        if (guard.CanSeePlayer)
         {
-            float distance = Vector3.Distance(transform.position, guard.PlayerTransform.position);
+            float distance = Vector3.Distance(transform.position, Player.transform.position);
             float detectionChance = 0f;
 
             if (playerInGrass)
             {
-                // SUPER LOW detection chance when in grass!
-                if (distance < 3f) detectionChance = 0.1f;      // Only 10% at close range
-                else if (distance < 5f) detectionChance = 0.05f; // 5% at medium range
-                else detectionChance = 0.01f;                   // 1% at far range
-
-                Debug.Log($"Player in grass - detection chance: {detectionChance * 100}%");
+                if (distance < 3f) detectionChance = 0.1f;
+                else if (distance < 5f) detectionChance = 0.05f;
+                else detectionChance = 0.01f;
             }
             else
             {
-                // Normal detection when not in grass
                 if (distance < 3f) detectionChance = 0.8f;
                 else if (distance < 5f) detectionChance = 0.5f;
                 else if (distance < 8f) detectionChance = 0.2f;
                 else detectionChance = 0.1f;
             }
 
-            // Roll the dice!
             if (Random.value < detectionChance)
             {
-                Debug.Log($"FSM: SAW you! ({detectionChance * 100}% chance)");
+                Debug.Log($"FSM: SAW player while suspicious! Switching to CHASE");
                 currentState = GuardState.Chasing;
-                lastKnownPlayerPosition = guard.PlayerTransform.position;
+                lastKnownPlayerPosition = Player.transform.position;
                 return;
             }
-            else
-            {
-                Debug.Log($"FSM: MISSED you! (Chance to spot was {detectionChance * 100}%)");
-            }
-        }
-        else
-        {
-            if (playerInGrass)
-            {
-                Debug.Log("FSM: Player hidden in grass - safe");
-            }
         }
 
-        // Suspicion ends
         if (suspiciousTimer <= 0)
         {
-            Debug.Log("Suspicion ended - back to patrol");
+            Debug.Log("FSM: Suspicion ended - back to patrol");
             currentState = GuardState.Patrolling;
-            agent.speed = wanderSpeed; // Reset speed
+            agent.speed = guard.GetDetectionRange(); // Reset speed
         }
     }
-
     #endregion
 
     #region Chase
-
-    // actual chase the player
     public override void Chase(Transform target)
     {
         if (target != null && agent != null)
         {
             Seek(target.position);
-            //Debug.Log($"Chasing player at {target.position}");
         }
     }
 
-    // chase state handling
     private void UpdateChasing()
     {
-        if (guard.PlayerTransform == null) { return; }
+        if (player == null) return;
 
-        Chase(guard.PlayerTransform);
+        if (!TryGetPlayer(out Player currentPlayer))
+        {
+            currentState = GuardState.Patrolling;
+            return;
+        }
 
-        // Reset waiting when chasing
+        // Debug where the guard thinks the player is
+        if (Time.frameCount % 30 == 0)
+        {
+            Debug.Log($"CHASING: Guard at {transform.position}");
+            Debug.Log($"CHASING: Player at {player.transform.position}");
+            Debug.Log($"CHASING: Destination = {agent.destination}");
+            Debug.Log($"CHASING: Has line of sight = {HasLineOfSightToPlayer()}");
+        }
+
+        Chase(player.transform);
         isWaiting = false;
 
-        // keep counting spotted frames while chasing
-        if (guard.HasLineOfSightToPlayer())
+        if (HasLineOfSightToPlayer())
         {
             if (GameManager.Instance != null)
                 GameManager.Instance.PlayerSpotted();
         }
 
-        if (!guard.HasLineOfSightToPlayer())
+        if (!HasLineOfSightToPlayer())
         {
+            Debug.Log($"LOST PLAYER! Last known position = {lastKnownPlayerPosition}");
             currentState = GuardState.Searching;
             searchTimer = searchDuration;
-            lastKnownPlayerPosition = guard.PlayerTransform.position;
-            Debug.Log("Lost player - searching...");
+            lastKnownPlayerPosition = player.transform.position;  // Update with actual player position
 
             if (wasPlayerVisible)
             {
@@ -373,16 +430,14 @@ public class FSM : AIBrain
             }
         }
     }
-
     #endregion
 
     #region Searching
-
     private void UpdateSearching()
     {
-        searchTimer -= Time.deltaTime;
+        if (Player == null) return;
 
-        // Reset waiting when searching
+        searchTimer -= Time.deltaTime;
         isWaiting = false;
 
         if (agent != null && !agent.pathPending && agent.remainingDistance < 0.5f)
@@ -392,26 +447,26 @@ public class FSM : AIBrain
             Seek(searchPosition);
         }
 
-        if (guard.HasLineOfSightToPlayer())
+        // If we find the player, chase them
+        if (HasLineOfSightToPlayer())
         {
+            Debug.Log("FSM: Found player while searching! Switching to CHASE");
             currentState = GuardState.Chasing;
             return;
         }
 
         if (searchTimer <= 0)
         {
+            Debug.Log("FSM: Search ended - back to patrol");
             currentState = GuardState.Patrolling;
         }
     }
-
     #endregion
 
     #region Wander
-
-    // this wander between random waypoint to simulate variantion and randomness
     public override void Wander()
     {
-        if (agent == null) { return; }
+        if (agent == null) return;
 
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
@@ -419,30 +474,18 @@ public class FSM : AIBrain
             if (nextWaypoint != null)
             {
                 Seek(nextWaypoint.position);
-                //Debug.Log($"Wandering to waypoint: {nextWaypoint.name}");
             }
             else
             {
                 Vector3 randomDirection = Random.insideUnitSphere * 10f;
                 randomDirection += transform.position;
 
-                if (NavMesh.SamplePosition(
-                    randomDirection,
-                    out NavMeshHit hit,
-                    10,
-                    NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, 10, NavMesh.AllAreas))
                 {
                     Seek(hit.position);
-                    //Debug.Log("Wandering randomly");
-
                 }
             }
         }
     }
-
     #endregion
-
-    
-
 }
-

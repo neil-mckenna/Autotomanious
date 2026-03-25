@@ -6,7 +6,6 @@ using UnityEngine.AI;
 public class ZombieSpawner : MonoBehaviour
 {
     [Header("Spawner Settings")]
-    [SerializeField] private GameObject zombieParent;
     [SerializeField] private GameObject zombiePrefab;
     [SerializeField] private AIBrain zombieBrainPrefab;
     [SerializeField] private int maxZombies = 10;
@@ -14,48 +13,46 @@ public class ZombieSpawner : MonoBehaviour
     [SerializeField] private float spawnInterval = 5f;
     [SerializeField] private bool spawnOnStart = true;
 
-    [Header("Wave Settings")]
-    [SerializeField] private int zombiesPerWave = 2;
-    [SerializeField] private float waveDelay = 8f;
-    [SerializeField] private bool infiniteWaves = true;
+    [Header("Spawn Safety")]
+    [SerializeField] private float minDistanceFromPlayer = 5f;
+    [SerializeField] private int maxSpawnAttempts = 20;
 
     [Header("Visual")]
     [SerializeField] private Color gizmoColor = new Color(1f, 0f, 0f, 0.2f);
     [SerializeField] private bool showSpawnRadius = true;
 
-    [Header("Effects")]
-    [SerializeField] private ParticleSystem spawnEffect;
-    [SerializeField] private AudioClip spawnSound;
+    [Header("Wave Settings")]
+    [SerializeField] private int zombiesPerWave = 2;
+    [SerializeField] private float waveDelay = 8f;
+    [SerializeField] private bool infiniteWaves = true;
 
     private List<GameObject> activeZombies = new List<GameObject>();
-    private Transform playerTransform;
+    private Player player;
     private AudioSource audioSource;
     private int currentWave = 0;
-
-    private bool playerReady = false;
-
+    private bool playerReady = false;  //  NEW: Track if player is ready
 
     void Start()
     {
+        //  Wait for player to be ready before spawning
         StartCoroutine(WaitForPlayer());
     }
 
     private IEnumerator WaitForPlayer()
     {
-        Debug.Log("ZombieSpawner: Waiting for player...");
+        Debug.Log(" ZombieSpawner: Waiting for player...");
 
-        // Wait up to 5 seconds for player
         float timeout = 5f;
         float timer = 0f;
 
         while (timer < timeout)
         {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
+            Player tempPlayer = GameObject.FindAnyObjectByType<Player>();
+            if (tempPlayer != null)
             {
-                playerTransform = player.transform;
+                player = tempPlayer;
                 playerReady = true;
-                Debug.Log($"ZombieSpawner: Player found after {timer:F1} seconds");
+                Debug.Log($" ZombieSpawner: Player found after {timer:F1} seconds");
                 break;
             }
 
@@ -65,22 +62,15 @@ public class ZombieSpawner : MonoBehaviour
 
         if (!playerReady)
         {
-            Debug.LogError("ZombieSpawner: Player not found after 5 seconds!");
+            Debug.LogError(" ZombieSpawner: Player not found after timeout!");
             yield break;
         }
 
-        // Setup audio
         audioSource = GetComponent<AudioSource>();
-        if (audioSource == null && spawnSound != null)
+        if (audioSource == null)
             audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Setup parent if needed
-        if (zombieParent == null)
-        {
-            zombieParent = new GameObject("Zombies");
-        }
-
-        // Start spawning
+        //  Now start spawning
         if (spawnOnStart)
         {
             StartCoroutine(SpawnInitialZombies());
@@ -98,7 +88,7 @@ public class ZombieSpawner : MonoBehaviour
             yield return new WaitForSeconds(0.3f);
         }
 
-        Debug.Log($"Spawner {gameObject.name} - Initial zombies spawned");
+        Debug.Log($" Spawner {gameObject.name} - Initial zombies spawned");
     }
 
     private IEnumerator WaveSpawner()
@@ -116,7 +106,7 @@ public class ZombieSpawner : MonoBehaviour
                 if (toSpawn > 0)
                 {
                     currentWave++;
-                    Debug.Log($"WAVE {currentWave} - Spawning {toSpawn} zombies");
+                    Debug.Log($" WAVE {currentWave} - Spawning {toSpawn} zombies");
 
                     for (int i = 0; i < toSpawn; i++)
                     {
@@ -130,85 +120,66 @@ public class ZombieSpawner : MonoBehaviour
 
     public void SpawnZombie()
     {
-        // Check all dependencies
+        //  Check if player is ready
+        if (!playerReady || player == null)
+        {
+            Debug.LogWarning(" ZombieSpawner: Player not ready, skipping spawn");
+            return;
+        }
+
         if (zombiePrefab == null)
         {
-            Debug.LogError("Zombie prefab not assigned!");
+            Debug.LogError(" Zombie prefab not assigned!");
             return;
         }
 
         if (zombieBrainPrefab == null)
         {
-            Debug.LogError("Zombie brain prefab not assigned!");
+            Debug.LogError(" Zombie brain prefab not assigned!");
             return;
         }
 
-        if (playerTransform == null)
-        {
-            Debug.LogError("Player reference missing!");
-            return;
-        }
+        // Find a safe spawn position
+        Vector3 spawnPosition = GetSafeSpawnPosition();
 
-        Vector3 spawnPosition = GetRandomSpawnPosition();
         if (spawnPosition == Vector3.zero)
         {
-            Debug.LogError("Could not find valid spawn position!");
+            Debug.LogWarning(" Could not find safe spawn position for zombie!");
             return;
         }
 
-        // Play effects
-        if (spawnEffect != null)
+        // Double-check distance from player
+        float distanceToPlayer = Vector3.Distance(spawnPosition, player.transform.position);
+        if (distanceToPlayer < minDistanceFromPlayer)
         {
-            Instantiate(spawnEffect, spawnPosition, Quaternion.identity);
+            Debug.LogWarning($" Spawn position too close to player ({distanceToPlayer:F1}m). Retrying...");
+            spawnPosition = GetSafeSpawnPosition();
+            distanceToPlayer = Vector3.Distance(spawnPosition, player.transform.position);
+            if (distanceToPlayer < minDistanceFromPlayer)
+            {
+                Debug.LogWarning($" Still too close - skipping spawn this wave");
+                return;
+            }
         }
 
-        if (spawnSound != null && audioSource != null)
-        {
-            audioSource.PlayOneShot(spawnSound);
-        }
+        Debug.Log($" Spawning zombie at {spawnPosition}, distance from player: {distanceToPlayer:F1}m");
 
         // Create zombie
         GameObject zombie = Instantiate(zombiePrefab, spawnPosition, Quaternion.identity);
-        if (zombieParent != null)
-            zombie.transform.SetParent(zombieParent.transform);
-
         zombie.name = $"Zombie_{activeZombies.Count + 1}";
 
-        // Get OR add NavMeshAgent correctly
+        // Setup NavMeshAgent
         NavMeshAgent agent = zombie.GetComponent<NavMeshAgent>();
         if (agent == null)
-        {
             agent = zombie.AddComponent<NavMeshAgent>();
-        }
 
-        // Enable agent
         agent.enabled = true;
-
-        // Find and warp to NavMesh
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(spawnPosition, out hit, 25f, NavMesh.AllAreas))
-        {
-            agent.Warp(hit.position);
-            Debug.Log($"Zombie placed on NavMesh at {hit.position}");
-        }
-        else
-        {
-            Debug.LogError($"No NavMesh found near {spawnPosition}");
-            Destroy(zombie);
-            return;
-        }
+        agent.Warp(spawnPosition);
 
         // Add zombie brain
         AIBrain brain = Instantiate(zombieBrainPrefab, zombie.transform);
-        if (brain == null)
-        {
-            Debug.LogError("Failed to instantiate zombie brain!");
-            Destroy(zombie);
-            return;
-        }
-
         brain.SetAgent(agent);
-        brain.SetPlayer(playerTransform);
+        //brain.SetPlayer(player);
 
         // Setup Guard component
         Guard guard = zombie.GetComponent<Guard>();
@@ -216,13 +187,6 @@ public class ZombieSpawner : MonoBehaviour
         {
             guard.currentBrain = brain;
             brain.Init(guard);
-            Debug.Log($"Zombie initialized with player reference");
-        }
-        else
-        {
-            Debug.LogError("Guard component missing on zombie prefab!");
-            Destroy(zombie);
-            return;
         }
 
         activeZombies.Add(zombie);
@@ -231,34 +195,42 @@ public class ZombieSpawner : MonoBehaviour
         ZombieCleanup cleanup = zombie.AddComponent<ZombieCleanup>();
         cleanup.SetSpawner(this);
 
-        Debug.Log($"Zombie spawned successfully");
+        Debug.Log($" Zombie spawned successfully at distance {distanceToPlayer:F1}m from player");
     }
 
-    private Vector3 GetRandomSpawnPosition()
+    private Vector3 GetSafeSpawnPosition()
     {
-        for (int i = 0; i < 20; i++)
+        if (!playerReady || player == null)
+            return Vector3.zero;
+
+        for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
         {
             Vector2 randomCircle = Random.insideUnitCircle * spawnRadius;
-            Vector3 spawnPosition = transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
+            Vector3 testPosition = transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
 
             NavMeshHit hit;
-            if (NavMesh.SamplePosition(spawnPosition, out hit, 10f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(testPosition, out hit, 10f, NavMesh.AllAreas))
             {
-                // Check not too close to player
-                if (playerTransform != null && Vector3.Distance(hit.position, playerTransform.position) < 3f)
+                float distanceToPlayer = Vector3.Distance(hit.position, player.transform.position);
+                if (distanceToPlayer >= minDistanceFromPlayer)
                 {
-                    continue;
+                    return hit.position;
                 }
-                return hit.position;
             }
         }
+
+        if (Vector3.Distance(transform.position, player.transform.position) >= minDistanceFromPlayer)
+        {
+            return transform.position;
+        }
+
         return Vector3.zero;
     }
 
     public void ZombieDestroyed(GameObject zombie)
     {
         activeZombies.Remove(zombie);
-        Debug.Log($"Zombie destroyed - Remaining: {activeZombies.Count}");
+        Debug.Log($" Zombie destroyed - Remaining: {activeZombies.Count}");
     }
 
     public int GetActiveZombieCount()
@@ -267,7 +239,7 @@ public class ZombieSpawner : MonoBehaviour
         return activeZombies.Count;
     }
 
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
         if (!showSpawnRadius) return;
 
@@ -275,9 +247,22 @@ public class ZombieSpawner : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, spawnRadius);
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(transform.position, transform.localScale);
+
+#if UNITY_EDITOR
+        UnityEditor.Handles.color = Color.white;
+        UnityEditor.Handles.Label(transform.position + Vector3.up * 2,
+            $"Zombie Spawner\nRadius: {spawnRadius:F1}\nSafe Distance: {minDistanceFromPlayer:F1}");
+#endif
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(transform.position, minDistanceFromPlayer);
     }
 }
 
+// Helper component for cleanup
 public class ZombieCleanup : MonoBehaviour
 {
     private ZombieSpawner spawner;

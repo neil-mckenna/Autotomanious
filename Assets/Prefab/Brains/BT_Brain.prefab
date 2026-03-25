@@ -76,6 +76,9 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  chaseSpeed: 5
-  wanderSpeed: 3.5
-  searchDuration: 3
+  suspicionTime: 3
+  chaseSpeed: 8
+  wanderSpeed: 3
+  searchDuration: 10
+  suspicionTimeMin: 5
+  suspicionTimeMax: 13.9

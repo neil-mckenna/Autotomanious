@@ -47,10 +47,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Zombie
   agent: {fileID: 7841104420405222440, guid: d920e3501de2fd24982cacdfe4c97fed, type: 3}
   waypoints: []
+  player: {fileID: 2717115073900031565, guid: e93a9d93f1acf014c99c9f6a2f4ae63d, type: 3}
   shamblingSpeed: 3
+  runningSpeed: 12
   detectionAngle: 60
   wanderRadius: 40
-  waitTime: 1
+  waitTime: 0.5
   forgetTime: 8
   killRange: 2
   idleGroans:
@@ -73,7 +75,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 69812e02fdf6c421a938309cc2d45922, type: 3}
   - {fileID: 8300000, guid: 8b8be6e6b3dd044d782ae23b59519a28, type: 3}
   - {fileID: 8300000, guid: 50be8f631d6a14da58b3ef230ec1c022, type: 3}
-  attackSound: {fileID: 8300000, guid: 29726c349dbf64b0aadfe8c9ec00d728, type: 3}
+  attackSound: {fileID: 8300000, guid: 7d76f8d46388e4a88a47beac2f2f0bc6, type: 3}
+  biteSound: {fileID: 8300000, guid: 29726c349dbf64b0aadfe8c9ec00d728, type: 3}
   groanInterval: 3
   groanVolume: 0.7
   chaseGroanMultiplier: 0.5
