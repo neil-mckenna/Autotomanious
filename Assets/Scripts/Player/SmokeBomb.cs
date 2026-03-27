@@ -225,7 +225,7 @@ public class SmokeBomb : MonoBehaviour
 
                 if (addEffect)
                 {
-                    Debug.LogError($" Applying smoke effects to {brain.GetType().Name}");
+                    //Debug.Log($" Applying smoke effects to {brain.GetType().Name}");
                     brain.FlashRedForDuration(0.25f, 6);
                     //brain.Stun(7f); // stun if for flashbang, but was testing
                     brain.Blind(10f, 0.3f);

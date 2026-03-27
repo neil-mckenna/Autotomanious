@@ -129,7 +129,12 @@ public class PlayerWeapon : MonoBehaviour
         currentSmokeBombs--;
         lastThrowTime = Time.time;
 
-        Vector3 throwPosition = playerCamera.transform.position + playerCamera.transform.forward;
+        Vector3 throwPosition = transform.position + Vector3.up * 1f;
+
+        Vector3 throwDirection = playerCamera.transform.forward + Vector3.up * 0.3f;
+        throwDirection.Normalize();
+
+
         GameObject smoke = Instantiate(smokeBombPrefab, throwPosition, Quaternion.identity);
 
         Rigidbody rb = smoke.GetComponent<Rigidbody>();
@@ -148,7 +153,11 @@ public class PlayerWeapon : MonoBehaviour
         currentFlashBangs--;
         lastThrowTime = Time.time;
 
-        Vector3 throwPosition = playerCamera.transform.position + playerCamera.transform.forward;
+        Vector3 throwPosition = transform.position + Vector3.up * 1f;
+
+        Vector3 throwDirection = playerCamera.transform.forward + Vector3.up * 0.3f;
+        throwDirection.Normalize();
+
         GameObject flash = Instantiate(flashBangPrefab, throwPosition, Quaternion.identity);
 
         Rigidbody rb = flash.GetComponent<Rigidbody>();

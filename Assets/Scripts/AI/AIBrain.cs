@@ -122,7 +122,7 @@ public abstract class AIBrain : MonoBehaviour
         player = FindAnyObjectByType<Player>();
         if (player != null)
         {
-            Debug.LogError($"{GetType().Name}: Auto-found player at {player.transform.position}");
+            Debug.Log($"{GetType().Name}: Auto-found player at {player.transform.position}");
         }
         else
         {
