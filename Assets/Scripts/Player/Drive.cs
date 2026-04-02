@@ -1,426 +1,168 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
+[RequireComponent(typeof(CharacterController))]
 public class Drive : MonoBehaviour
 {
-    [Header("Feet Location")]
-    [SerializeField] public Transform feetLocation = null;
-
-    [Header("Movement Settings")]
-    public float walkSpeed = 5f;
-    public float runSpeed = 10f;
-    public float rotationSpeed = 100f;
-    public float jumpForce = 8f;
-    public float gravity = -15f;
-
-    [Header("Noise Settings")]
-    public float walkNoiseRadius = 2f;
-    public float runNoiseRadius = 5f;
-    public float landNoiseRadius = 4f;
-    public float noiseCheckInterval = 0.3f;
-
-    [Header("Noise Multiplier")]
-    public float noiseTravelMultiplier = 3f; // Sound travels 3x visual range
-
-    [Header("Audio Clips")]
-    public AudioClip walkSound;
-    public AudioClip runSound;
-    public AudioClip jumpSound;
-    public AudioClip landSound;
-    [Range(0f, 1f)] public float audioVolume = 0.5f;
-
-    [Header("Visual Feedback")]
-    public GameObject noiseVisualPrefab;
-    public Color walkColor = new Color(0f, 1f, 1f, 0.5f); // Cyan
-    public Color runColor = new Color(1f, 0f, 1f, 0.6f);  // Magenta
-    public Color landColor = new Color(1f, 1f, 0f, 0.6f); // Yellow
-
-    [Header("Camera Settings")]
+    [Header("References")]
+    public Transform cameraPivot;
     public Camera playerCamera;
-    public float zoomSpeed = 5f;
-    public float minZoom = 30f;
-    public float maxZoom = 90f;
-    public float defaultZoom = 60f;
-    public bool invertScroll = true;
 
-    private float currentZoom;
-    private float targetZoom;
-    private float zoomVelocity;
-    private Mouse mouse;
-
-
-    //
-
-    private float verticalVelocity = 0f;
-    private bool isGrounded;
-    private bool wasGrounded = true;
     private CharacterController controller;
-    private float nextNoiseTime;
-    private AudioSource audioSource;
 
-    // Public properties
-    public float CurrentSpeed { get; private set; }
-    public bool IsRunning { get; private set; }
-    public bool IsMoving { get; private set; }
-    public Vector3 Position => transform.position;
+    [Header("Movement")]
+    public float walkSpeed = 4f;
+    public float runSpeed = 7f;
+    public float acceleration = 10f;
+    public float airControl = 0.5f;
 
-    private void OnEnable()
+    [Header("Jump & Gravity")]
+    public float jumpForce = 1.6f;
+    public float gravity = -20f;
+
+    [Header("Mouse Look")]
+    public float mouseSensitivity = 2f;
+    public float verticalClamp = 80f;
+
+    [Header("Mouse Smoothing - NEW")]
+    public bool useSmoothing = true;
+    public float smoothingAmount = 8f; // Higher = faster response, Lower = smoother
+    public float rotationDamping = 10f; // Smooth rotation for camera
+
+    private float yVelocity;
+    private float xRotation;
+    private float targetXRotation;
+
+    private Vector2 targetMouseDelta;
+    private Vector2 currentMouseDelta;
+
+    private Vector3 currentVelocity;
+
+    void Awake()
     {
-        // Safe version with null check
-        if (controller != null)
-        {
-            controller.Move(Vector3.zero);
-        }
-        verticalVelocity = 0f;
-
-        // Start coroutine safely
-        if (gameObject.activeInHierarchy)
-        {
-            StartCoroutine(SnapToGround());
-        }
-    }
-
-    void Start()
-    {
-        // Add CharacterController
         controller = GetComponent<CharacterController>();
-        if (controller == null)
-        {
-            controller = gameObject.AddComponent<CharacterController>();
-            controller.height = 2f;
-            controller.radius = 0.5f;
-            controller.center = new Vector3(0, 1, 0);
 
-            
-      
-            
-       
-
-        }
-
-        // Add AudioSource
-        audioSource = GetComponent<AudioSource>();
-        if (audioSource == null)
-        {
-            audioSource = gameObject.AddComponent<AudioSource>();
-        }
-
-        // Configure AudioSource
-        audioSource.spatialBlend = 0f; // 2D sound
-        audioSource.volume = audioVolume;
-        audioSource.playOnAwake = false;
-
-        // Check audio clips
-        if (walkSound == null) Debug.LogWarning("Walk sound not assigned!");
-        if (runSound == null) Debug.LogWarning("Run sound not assigned!");
-        if (jumpSound == null) Debug.LogWarning("Jump sound not assigned!");
-        if (landSound == null) Debug.LogWarning("Land sound not assigned!");
-
-        
-        // Get the main camera if not assigned
         if (playerCamera == null)
             playerCamera = Camera.main;
 
-        if (playerCamera != null)
-        {
-            currentZoom = playerCamera.fieldOfView;
-            targetZoom = currentZoom;
-            defaultZoom = currentZoom;
-            Debug.Log($"Camera initialized. FOV: {currentZoom}");
-        }
+        AssignCameraToCanvases();
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        // Initialize rotation values
+        targetXRotation = cameraPivot.localEulerAngles.x;
+        xRotation = targetXRotation;
     }
 
-
-    IEnumerator SnapToGround()
+    void AssignCameraToCanvases()
     {
-        yield return null; // Wait one frame
-
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position, Vector3.down, out hit, 100f))
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        foreach (Canvas canvas in canvases)
         {
-            transform.position = new Vector3(transform.position.x, hit.point.y + 0.1f, transform.position.z);
-            Debug.Log($"Player placed on ground at Y={hit.point.y}");
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                canvas.worldCamera = playerCamera;
+                Debug.Log($"Assigned camera to canvas: {canvas.name}");
+            }
         }
-
-        // Reset velocity
-        Drive drive = GetComponent<Drive>();
-        if (drive != null)
-        {
-            drive.verticalVelocity = 0f;
-        }
-    }
-
-
-    public void ResetMovement()
-    {
-        // Reset velocity
-        verticalVelocity = 0f;
-
-        // Reset grounded state
-        isGrounded = true;
-        wasGrounded = true;
-
-        // Reset noise timer
-        nextNoiseTime = 0f;
-
-        // Reset CharacterController velocity
-        if (controller != null)
-        {
-            controller.Move(Vector3.zero);
-        }
-
-        // Reset movement flags
-        IsMoving = false;
-        IsRunning = false;
-        CurrentSpeed = 0f;
-
-        //Debug.Log("Drive movement reset");
     }
 
     void Update()
     {
+        HandleMouseLook();
         HandleMovement();
-        HandleNoise();
-        HandleCameraZoom();
-      
     }
 
-    private void HandleMovement()
+    // =========================
+    //  SMOOTHER MOUSE LOOK
+    // =========================
+    void HandleMouseLook()
     {
-        // Get input
-        float vertical = 0f;
-        float horizontal = 0f;
-        bool sprintHeld = false;
-        bool jumpPressed = false;
+        Vector2 rawMouse = Mouse.current.delta.ReadValue();
 
-        var kb = Keyboard.current;
+        // Apply sensitivity
+        Vector2 mouseInput = rawMouse * mouseSensitivity;
+
+        // Simple Lerp smoothing
+        currentMouseDelta = Vector2.Lerp(currentMouseDelta, mouseInput, smoothingAmount * Time.deltaTime);
+
+        // Rotate player
+        transform.Rotate(Vector3.up * currentMouseDelta.x);
+
+        // Rotate camera with damping
+        targetXRotation -= currentMouseDelta.y;
+        targetXRotation = Mathf.Clamp(targetXRotation, -verticalClamp, verticalClamp);
+
+        // Smooth camera rotation
+        xRotation = Mathf.Lerp(xRotation, targetXRotation, rotationDamping * Time.deltaTime);
+        cameraPivot.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+    }
+
+    // =========================
+    // MOVEMENT (unchanged)
+    // =========================
+    void HandleMovement()
+    {
+        Keyboard kb = Keyboard.current;
         if (kb == null) return;
 
-        if (kb.wKey.isPressed || kb.upArrowKey.isPressed) vertical += 1f;
-        if (kb.sKey.isPressed || kb.downArrowKey.isPressed) vertical -= 1f;
-        if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) horizontal -= 1f;
-        if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) horizontal += 1f;
+        Vector2 input = Vector2.zero;
 
-        sprintHeld = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-        jumpPressed = kb.spaceKey.wasPressedThisFrame;
+        if (kb.wKey.isPressed) input.y += 1;
+        if (kb.sKey.isPressed) input.y -= 1;
+        if (kb.aKey.isPressed) input.x -= 1;
+        if (kb.dKey.isPressed) input.x += 1;
+
+        input = input.normalized;
+
+        bool sprint = kb.leftShiftKey.isPressed;
+        float targetSpeed = sprint ? runSpeed : walkSpeed;
+
+        Vector3 move = transform.right * input.x + transform.forward * input.y;
+
+        float control = controller.isGrounded ? 1f : airControl;
+
+        currentVelocity = Vector3.Lerp(
+            currentVelocity,
+            move * targetSpeed,
+            acceleration * control * Time.deltaTime
+        );
 
         // Ground check
-        isGrounded = controller.isGrounded;
+        if (controller.isGrounded && yVelocity < 0)
+            yVelocity = -2f;
 
-        if (isGrounded && verticalVelocity < 0)
+        // Jump
+        if (kb.spaceKey.wasPressedThisFrame && controller.isGrounded)
         {
-            verticalVelocity = -2f;
+            yVelocity = Mathf.Sqrt(jumpForce * -2f * gravity);
         }
 
-        // Calculate speed
-        float currentSpeed = (sprintHeld && vertical > 0) ? runSpeed : walkSpeed;
+        // Gravity
+        yVelocity += gravity * Time.deltaTime;
 
-        // Store state - ONLY VERTICAL movement counts for noise!
-        IsRunning = sprintHeld && vertical > 0;
-        IsMoving = Mathf.Abs(vertical) > 0.1f; // Only forward/backward movement
-        CurrentSpeed = IsMoving ? currentSpeed : 0f;
-
-        // Apply rotation (this doesn't make noise)
-        transform.Rotate(0, horizontal * rotationSpeed * Time.deltaTime, 0);
-
-        // Apply movement
-        Vector3 move = transform.forward * vertical * currentSpeed;
-        controller.Move(move * Time.deltaTime);
-
-        // Handle jumping
-        if (jumpPressed && isGrounded)
-        {
-            verticalVelocity = Mathf.Sqrt(jumpForce * -2f * gravity);
-            PlaySound(jumpSound, "Jump");
-        }
-
-        // Apply gravity
-        verticalVelocity += gravity * Time.deltaTime;
-        controller.Move(new Vector3(0, verticalVelocity * Time.deltaTime, 0));
-
-        // Check for landing
-        if (!wasGrounded && isGrounded)
-        {
-            OnLand();
-        }
-        wasGrounded = isGrounded;
+        Vector3 finalMove = currentVelocity + Vector3.up * yVelocity;
+        controller.Move(finalMove * Time.deltaTime);
     }
 
-    private void HandleNoise()
+    // =========================
+    // RESET
+    // =========================
+    public void ResetMovement()
     {
-        if (Time.time < nextNoiseTime) return;
-        nextNoiseTime = Time.time + noiseCheckInterval;
+        yVelocity = 0f;
+        currentVelocity = Vector3.zero;
+        currentMouseDelta = Vector2.zero;
+        targetMouseDelta = Vector2.zero;
 
-        // Only make noise if actually MOVING (vertical input), not just rotating
-        if (IsMoving && isGrounded)
-        {
-            float radius = IsRunning ? runNoiseRadius : walkNoiseRadius;
-            Color color = IsRunning ? runColor : walkColor;
-            string type = IsRunning ? "RUNNING" : "walking";
+        if (controller != null)
+            controller.Move(Vector3.zero);
 
-            PlaySound(IsRunning ? runSound : walkSound, type);
-            MakeNoise(radius, color, type);
-        }
-    }
+        xRotation = 0f;
+        targetXRotation = 0f;
 
-    private void OnLand()
-    {
-        //Debug.Log("Player landed - THUD!");
-        PlaySound(landSound, "LANDING");
-        MakeNoise(landNoiseRadius, landColor, "LANDING");
-    }
-
-    private void MakeNoise(float visualRadius, Color color, string noiseType)
-    {
-        float soundTravelRadius = visualRadius * noiseTravelMultiplier;
-
-        //Debug.Log($"========== MAKING NOISE: {noiseType} ==========");
-        //Debug.Log($"Player position: {transform.position}");
-        //Debug.Log($"Visual radius: {visualRadius}, Sound radius: {soundTravelRadius}");
-
-        // 1. Spawn visual effect at FEET height
-        if (noiseVisualPrefab != null)
-        {
-            Vector3 spawnPos;
-            float playerY = transform.position.y;
-
-            //Debug.Log($"--- Calculating feet position ---");
-            //Debug.Log($"Player Y: {playerY}");
-
-            if (feetLocation != null)
-            {
-                spawnPos = new Vector3(transform.position.x, feetLocation.position.y, transform.position.z);
-
-            }
-            else
-            {
-                Debug.LogWarning("Feet Location is NULL! Using fallback calculation");
-
-                // Fallback: Assume CharacterController height
-                float feetHeight = playerY - 1f; // Standard 2-unit tall player
-     
-                spawnPos = new Vector3(transform.position.x, feetHeight, transform.position.z);
-                //Debug.Log($"Final fallback spawn Y: {spawnPos.y}");
-            }
-
-
-            // Instantiate the visual
-            GameObject visual = Instantiate(
-                noiseVisualPrefab, 
-                new Vector3(spawnPos.x, spawnPos.y -1f, spawnPos.z), 
-                Quaternion.identity);
-
-            NoiseVisual noiseVisual = visual.GetComponent<NoiseVisual>();
-            
-
-            if (noiseVisual != null)
-            {
-                noiseVisual.SetNoiseProperties(soundTravelRadius, color);
-                //Debug.Log($"NoiseVisual properties set: radius={soundTravelRadius}, color={color}");
-            }
-            else
-            {
-                Debug.LogError("NoiseVisual component not found on prefab!");
-            }
-
-            visual.transform.up = Vector3.up;
-            //Debug.Log($"Visual rotation set to up");
-        }
-        else
-        {
-            Debug.LogError("noiseVisualPrefab is not assigned!");
-        }
-
-        // 2. Find ALL guards
-        //Debug.Log($"--- Notifying guards ---");
-        Guard[] allGuards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
-        //Debug.Log($"Found {allGuards.Length} guards in scene");
-
-        // 3. Tell each guard about the noise
-        foreach (Guard guard in allGuards)
-        {
-
-            guard.currentBrain.HearNoise(transform.position, soundTravelRadius * guard.guardHearingSensitivity);
-
-            // Draw debug line to show which guards were notified
-            Debug.DrawLine(transform.position, guard.transform.position, Color.cyan, 1.0f);
-        }
-
-        //Debug.Log($"========== NOISE COMPLETE ==========");
-    }
-
-    private void PlaySound(AudioClip clip, string soundName)
-    {
-        if (clip == null)
-        {
-            return;
-        }
-
-        if (audioSource != null)
-        {
-            audioSource.PlayOneShot(clip, audioVolume);
-        }
-    }
-
-    private void HandleCameraZoom()
-    {
-        if (playerCamera == null || mouse == null) return;
-
-        // Read scroll value from new input system (Y axis of scroll wheel)
-        float scrollValue = mouse.scroll.y.ReadValue();
-
-        // Only process if scroll is significant
-        if (Mathf.Abs(scrollValue) > 0.01f)
-        {
-            // Invert if desired (scroll up = zoom in = decrease FOV)
-            float direction = invertScroll ? -scrollValue : scrollValue;
-
-            // Update target zoom
-            targetZoom += direction * zoomSpeed * 10f;
-
-            // Clamp to limits
-            targetZoom = Mathf.Clamp(targetZoom, minZoom, maxZoom);
-
-            Debug.Log($"Scroll: {scrollValue}, Zoom: {targetZoom:F1}");
-        }
-
-        // Smoothly interpolate to target zoom
-        currentZoom = Mathf.SmoothDamp(currentZoom, targetZoom, ref zoomVelocity, 0.1f);
-        playerCamera.fieldOfView = currentZoom;
-
-        // Reset zoom with middle mouse button
-        if (mouse.middleButton.wasPressedThisFrame)
-        {
-            targetZoom = defaultZoom;
-            Debug.Log("Zoom reset to default");
-        }
-    }
-
-
-    // Visual debugging
-    void OnDrawGizmos()
-    {
-        if (controller == null) return;
-
-        // Draw controller capsule
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Vector3 bottom = transform.position + Vector3.up * controller.radius;
-        Vector3 top = transform.position + Vector3.up * (controller.height - controller.radius);
-        Gizmos.DrawWireSphere(bottom, controller.radius);
-        Gizmos.DrawWireSphere(top, controller.radius);
-
-        // Draw noise radii
-        if (!Application.isPlaying) return;
-
-        Gizmos.color = new Color(0f, 1f, 1f, 0.1f);
-        Gizmos.DrawWireSphere(transform.position, walkNoiseRadius);
-
-        Gizmos.color = new Color(1f, 0f, 1f, 0.2f);
-        Gizmos.DrawWireSphere(transform.position, runNoiseRadius);
-
-        Gizmos.color = new Color(1f, 1f, 0f, 0.15f);
-        Gizmos.DrawWireSphere(transform.position, landNoiseRadius);
+        if (cameraPivot != null)
+            cameraPivot.localRotation = Quaternion.identity;
     }
 }

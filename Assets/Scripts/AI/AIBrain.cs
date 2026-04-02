@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using static UnityEditor.Experimental.GraphView.GraphView;
+//using static UnityEditor.Experimental.GraphView.GraphView;
 
 public abstract class AIBrain : MonoBehaviour
 {
@@ -178,37 +178,30 @@ public abstract class AIBrain : MonoBehaviour
     #region Vision Detection
     public virtual bool HasLineOfSightToPlayer()
     {
-        if (Player == null) return false;
-        if (isBlinded) return false;
+        if (player == null || guard == null) return false;
 
-        // Use the raycast start location
-        Vector3 rayStart = guard.RayCastStartLocation != null ?
-                           guard.RayCastStartLocation.position :
-                           transform.position + Vector3.up * 1.5f;
+        // Use the guard's raycast start location for consistency
+        Vector3 eyePosition = guard.RayCastStartLocation != null
+            ? guard.RayCastStartLocation.position
+            : transform.position + Vector3.up * 0.5f;
 
-        // Player chest level
-        Vector3 playerTarget = Player.transform.position + Vector3.up * 1.0f;
+        Vector3 playerPosition = player.transform.position + Vector3.up * 1.5f;
 
-        Vector3 directionToPlayer = (playerTarget - rayStart).normalized;
+        float distance = Vector3.Distance(eyePosition, playerPosition);
 
-        // Use the raycast start location's forward direction
-        Vector3 forwardDirection = guard.RayCastStartLocation != null ?
-                                   guard.RayCastStartLocation.forward :
-                                   transform.forward;
+        if (distance > guard.GetDetectionRange()) return false;
 
-        float angle = Vector3.Angle(forwardDirection, directionToPlayer);
+        Vector3 directionToPlayer = (playerPosition - eyePosition).normalized;
+        float angle = Vector3.Angle(transform.forward, directionToPlayer);
         float halfFOV = guard.GetFieldOfView() / 2f;
 
         if (angle > halfFOV) return false;
 
-        float distanceToPlayer = Vector3.Distance(rayStart, playerTarget);
-        if (distanceToPlayer > guard.GetDetectionRange()) return false;
-
+        // Line of sight check
         RaycastHit hit;
-        if (Physics.Raycast(rayStart, directionToPlayer, out hit, distanceToPlayer))
+        if (Physics.Raycast(eyePosition, directionToPlayer, out hit, distance))
         {
-            if (hit.transform.CompareTag("Grass")) return false;
-            return hit.transform == Player.transform;
+            return hit.transform == player.transform;
         }
 
         return false;
@@ -488,7 +481,7 @@ public abstract class AIBrain : MonoBehaviour
     {
         this.guard = guard;
         player = _player;
-        Debug.Log($"{GetType().Name}: Init with player {_player?.name}");
+        //Debug.Log($"{GetType().Name}: Init with player {_player?.name}");
 
         // Call the original Init
         Init(guard);

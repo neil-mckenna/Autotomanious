@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7506237258442194812}
   - component: {fileID: 3313134464105215217}
   - component: {fileID: 9124289640183589349}
-  - component: {fileID: 4006248134285940877}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -117,10 +116,10 @@ MonoBehaviour:
     m_Bits: 1
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
-  m_RenderPostProcessing: 0
-  m_Antialiasing: 0
+  m_RenderPostProcessing: 1
+  m_Antialiasing: 1
   m_AntialiasingQuality: 2
-  m_StopNaN: 0
+  m_StopNaN: 1
   m_Dithering: 0
   m_ClearDepth: 1
   m_AllowXRRendering: 1
@@ -138,24 +137,3 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!114 &4006248134285940877
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8960835594191567085}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da656002dc623d049ba5b5a6affc4e92, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
-  target: {fileID: 7965943862363237027, guid: e93a9d93f1acf014c99c9f6a2f4ae63d, type: 3}
-  distance: 8
-  height: 4
-  minDistance: 3
-  maxDistance: 10
-  zoomSpeed: 2
-  invertZoom: 1
-  lockRotation: 1
-  smoothSpeed: 3

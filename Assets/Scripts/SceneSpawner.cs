@@ -52,20 +52,7 @@ public class SceneSpawner : MonoBehaviour
         //  Wait for player to stabilize
         yield return new WaitForSeconds(0.5f);
 
-        //  Attach camera after player is stable
-        if (mainCamera != null && currentPlayerGO != null)
-        {
-            FollowCamera followCamera = mainCamera.GetComponent<FollowCamera>();
-            if (followCamera != null)
-            {
-                followCamera.SetTarget(currentPlayerGO.transform);
-                Debug.Log(" Camera attached to player after delay");
-            }
-            else
-            {
-                Debug.LogWarning("Camera doesn't have FollowCamera component!");
-            }
-        }
+
 
         //  Spawn guards
         SpawnAllGuards();
@@ -254,24 +241,6 @@ public class SceneSpawner : MonoBehaviour
         SpawnAllGuards();
     }
 
-    [ContextMenu("Respawn Player")]
-    public void RespawnPlayer()
-    {
-        if (currentPlayerGO != null)
-        {
-            Destroy(currentPlayerGO);
-        }
-
-        SpawnPlayer();
-
-        // Re-attach camera
-        if (mainCamera != null && currentPlayerGO != null)
-        {
-            FollowCamera followCamera = mainCamera.GetComponent<FollowCamera>();
-            if (followCamera != null)
-            {
-                followCamera.SetTarget(currentPlayerGO.transform);
-            }
-        }
-    }
+       
+    
 }

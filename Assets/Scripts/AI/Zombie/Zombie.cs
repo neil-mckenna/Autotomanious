@@ -77,7 +77,7 @@ public class Zombie : AIBrain
         groanTimer = Random.Range(1f, groanInterval);
         hasInitialised = true;
 
-        Debug.Log("Zombie initialized - slow shambler, fast runner!");
+        //Debug.Log("Zombie initialized - slow shambler, fast runner!");
     }
 
     private void WarpToNavMesh()

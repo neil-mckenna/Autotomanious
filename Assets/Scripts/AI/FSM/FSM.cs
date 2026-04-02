@@ -55,8 +55,15 @@ public class FSM : AIBrain
     {
         this.guard = guard;
 
-        //Debug.Log($"FSM Init called - Guard: {guard?.name}");
+        // Get the NavMeshAgent from the guard
+        agent = guard.GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            originalSpeed = agent.speed;
+        }
 
+        // Get waypoints from the guard's patrol points (you may need to set these)
+        // For now, try to find waypoints in children or leave as is
 
         SetSuspicionTime(Random.Range(suspicionTimeMin, suspicionTimeMax));
 
@@ -66,26 +73,21 @@ public class FSM : AIBrain
             if (agent != null && waypoints[0] != null)
             {
                 agent.SetDestination(waypoints[0].position);
-                //Debug.Log($"FSM: Moving to first waypoint at {waypoints[0].position}");
             }
-        }
-        else
-        {
-            Debug.LogWarning("FSM: No waypoints!");
         }
 
         currentState = GuardState.Patrolling;
-        Invoke(nameof(StartFirstPatrol), 0.2f);
         hasInitialised = true;
-        //Debug.Log("FSM Initialized - Starting Patrol");
+        Debug.Log("FSM Initialized");
     }
+
 
     // NEW: Init with player
     public override void Init(Guard guard, Player _player)
     {
+        this.guard = guard;
+        player = _player;
 
-        // Call base to set guard and player
-        base.Init(guard, _player);
 
         //Debug.Log($"FSM Init with player: {_player?.name}");
 
@@ -160,6 +162,7 @@ public class FSM : AIBrain
     #endregion
 
     #region Patrol
+
     private void UpdatePatrolling()
     {
         if (!TryGetPlayer(out Player currentPlayer))
@@ -168,35 +171,118 @@ public class FSM : AIBrain
             return;
         }
 
-        float distance = Vector3.Distance(transform.position, Player.transform.position);
-        
+        // Get raycast debugger
+        RaycastBodyDebugger bodyDebugger = GetComponent<RaycastBodyDebugger>();
+        if (bodyDebugger == null)
+        {
+            bodyDebugger = gameObject.AddComponent<RaycastBodyDebugger>();
+        }
 
-        float angle = Vector3.Angle(transform.forward, (Player.transform.position - transform.position).normalized);
+        // Get positions
+        Vector3 eyePosition = guard.RayCastStartLocation != null
+            ? guard.RayCastStartLocation.position
+            : transform.position + Vector3.up * 1.5f;
+
+        // Define 5 body parts with heights and colors
+        BodyPart[] bodyParts = new BodyPart[]
+        {
+        new BodyPart { name = "Head", height = 1.7f, color = Color.magenta },
+        new BodyPart { name = "Chest", height = 1.3f, color = Color.green },
+        new BodyPart { name = "Waist", height = 1.0f, color = Color.yellow },
+        new BodyPart { name = "Hips", height = 0.7f, color = Color.cyan },
+        new BodyPart { name = "Knees", height = 0.4f, color = new Color(1f, 0.5f, 0f) }
+        };
+
+        float detectionRange = guard.GetDetectionRange();
         float halfFOV = guard.GetFieldOfView() / 2f;
 
-        // CRITICAL DEBUG - Check every frame when close
-        if (distance < guard.GetDetectionRange())
-        {
-            Debug.Log($"=== VISION CHECK ===");
-            Debug.Log($"Distance: {distance:F1} / {guard.GetDetectionRange()}");
-            Debug.Log($"Angle: {angle:F1}° / Half FOV: {halfFOV}°");
-            Debug.Log($"In FOV: {angle <= halfFOV}");
-            Debug.Log($"CanSeePlayer: {guard.CanSeePlayer}");
-            Debug.Log($"Current State: {currentState}");
+        bool canSeeAny = false;
+        string hitBodyPart = "";
 
-            // Check raycast manually
-            Vector3 direction = (Player.transform.position - transform.position).normalized;
-            RaycastHit hit;
-            if (Physics.Raycast(transform.position, direction, out hit, distance))
+        // Draw detection range (ORANGE)
+        Debug.DrawRay(eyePosition, transform.forward * detectionRange, new Color(1f, 0.5f, 0f), 0.1f);
+
+        // Draw FOV boundaries (PURPLE)
+        Vector3 leftBoundary = Quaternion.Euler(0, -halfFOV, 0) * transform.forward * detectionRange;
+        Vector3 rightBoundary = Quaternion.Euler(0, halfFOV, 0) * transform.forward * detectionRange;
+        Debug.DrawRay(eyePosition, leftBoundary, new Color(0.8f, 0.2f, 0.8f), 0.1f);
+        Debug.DrawRay(eyePosition, rightBoundary, new Color(0.8f, 0.2f, 0.8f), 0.1f);
+
+        // Raycast to each body part
+        foreach (BodyPart part in bodyParts)
+        {
+            Vector3 targetPosition = player.transform.position + Vector3.up * part.height;
+            float distance = Vector3.Distance(eyePosition, targetPosition);
+            Vector3 direction = (targetPosition - eyePosition).normalized;
+            float angle = Vector3.Angle(transform.forward, direction);
+
+            // Draw line to each body part (colored by body part)
+            Debug.DrawRay(eyePosition, direction * distance, part.color, 0.15f);
+
+            // Draw target point marker
+            Debug.DrawRay(targetPosition, Vector3.up * 0.2f, part.color, 0.15f);
+            Debug.DrawRay(targetPosition, Vector3.down * 0.2f, part.color, 0.15f);
+
+            // Check if in range and FOV
+            if (distance <= detectionRange && angle <= halfFOV)
             {
-                Debug.Log($"Raycast hit: {hit.transform.name} (Tag: {hit.transform.tag})");
-                Debug.Log($"Is player: {hit.transform == Player.transform}");
+                RaycastHit hit;
+                if (Physics.Raycast(eyePosition, direction, out hit, distance))
+                {
+                    // Draw hit marker
+                    Debug.DrawLine(eyePosition, hit.point, part.color, 0.3f);
+                    DrawHitMarker(hit.point, part.color);
+
+                    // Record hit
+                    bool isPlayer = hit.transform == player.transform;
+                    bodyDebugger.RecordHit(hit.point, part.name, hit.transform.name, hit.distance, isPlayer);
+
+                    if (isPlayer)
+                    {
+                        canSeeAny = true;
+                        hitBodyPart = part.name;
+                        Debug.Log($" HIT {part.name}! Can see player!");
+                        break;
+                    }
+                    else
+                    {
+                        Debug.Log($" {part.name} blocked by: {hit.transform.name}");
+                    }
+                }
+                else
+                {
+                    // Record miss
+                    bodyDebugger.RecordMiss(targetPosition, part.name, distance);
+                    Debug.DrawRay(eyePosition, direction * distance, Color.gray, 0.15f);
+                }
+            }
+            else
+            {
+                // Draw reason why not checked
+                if (distance > detectionRange)
+                {
+                    Debug.DrawRay(eyePosition, direction * detectionRange, new Color(0.5f, 0.5f, 0.5f), 0.1f);
+                }
             }
         }
 
-        if (guard.CanSeePlayer)
+        guard.CanSeePlayer = canSeeAny;
+
+        // Debug summary
+        if (Time.frameCount % 60 == 0)
         {
-            Debug.Log($"SHOULD CHASE! Distance: {distance:F1} ");
+            float closestDistance = Vector3.Distance(eyePosition, player.transform.position + Vector3.up * 1.0f);
+            Debug.Log($"=== BODY PART DEBUG ===");
+            Debug.Log($"Can see player: {canSeeAny}");
+            if (canSeeAny)
+                Debug.Log($"Hit body part: {hitBodyPart}");
+            Debug.Log($"Distance to player: {closestDistance:F1}m");
+            Debug.Log($"Detection range: {detectionRange:F1}m");
+        }
+
+        if (canSeeAny)
+        {
+            Debug.Log($" SAW PLAYER! Switching to CHASE");
             currentState = GuardState.Chasing;
             lastKnownPlayerPosition = Player.transform.position;
             isWaiting = false;
@@ -215,27 +301,6 @@ public class FSM : AIBrain
         }
         else
         {
-            // Log why can't see
-            if (distance <= guard.GetDetectionRange())
-            {
-                angle = Vector3.Angle(transform.forward, (Player.transform.position - transform.position).normalized);
-                if (angle > guard.GetFieldOfView() / 2f)
-                {
-                    Debug.Log($"  Player in range but OUT of FOV! Angle: {angle:F1}°, Half FOV: {guard.GetFieldOfView() / 2f}°");
-                }
-                else
-                {
-                    Debug.Log($"  Player in range and in FOV but line of sight blocked!");
-                    // Check raycast
-                    Vector3 dir = (Player.transform.position - transform.position).normalized;
-                    RaycastHit hit;
-                    if (Physics.Raycast(transform.position, dir, out hit, distance))
-                    {
-                        Debug.Log($"    Raycast hit: {hit.transform.name} (Tag: {hit.transform.tag})");
-                    }
-                }
-            }
-
             if (wasPlayerVisible)
             {
                 wasPlayerVisible = false;
@@ -264,6 +329,27 @@ public class FSM : AIBrain
             }
         }
     }
+
+    // Helper method to draw hit marker
+    private void DrawHitMarker(Vector3 position, Color color)
+    {
+        float size = 0.25f;
+        Debug.DrawRay(position, Vector3.left * size, color, 0.3f);
+        Debug.DrawRay(position, Vector3.right * size, color, 0.3f);
+        Debug.DrawRay(position, Vector3.up * size, color, 0.3f);
+        Debug.DrawRay(position, Vector3.down * size, color, 0.3f);
+        Debug.DrawRay(position, Vector3.forward * size, color, 0.3f);
+        Debug.DrawRay(position, Vector3.back * size, color, 0.3f);
+    }
+
+    // BodyPart class
+    private class BodyPart
+    {
+        public string name;
+        public float height;
+        public Color color;
+    }
+
     #endregion
 
     #region Waiting
@@ -488,4 +574,87 @@ public class FSM : AIBrain
         }
     }
     #endregion
+
+    private void DebugRaycastHit(Vector3 origin, Vector3 direction, float distance, RaycastHit hit, string targetName)
+    {
+        // Draw the raycast line
+        Debug.DrawLine(origin, hit.point, Color.red, 0.5f);
+
+        // Draw a sphere at the hit point
+        Debug.DrawRay(hit.point, Vector3.up * 0.3f, Color.red, 0.5f);
+        Debug.DrawRay(hit.point, Vector3.down * 0.3f, Color.red, 0.5f);
+        Debug.DrawRay(hit.point, Vector3.left * 0.3f, Color.red, 0.5f);
+        Debug.DrawRay(hit.point, Vector3.right * 0.3f, Color.red, 0.5f);
+        Debug.DrawRay(hit.point, Vector3.forward * 0.3f, Color.red, 0.5f);
+        Debug.DrawRay(hit.point, Vector3.back * 0.3f, Color.red, 0.5f);
+
+        // Log warning with details
+        Debug.LogWarning($"=== RAYCAST HIT DETECTED ===");
+        Debug.LogWarning($"Hit object: {hit.transform.name}");
+        Debug.LogWarning($"Hit tag: {hit.transform.tag}");
+        Debug.LogWarning($"Hit point: {hit.point}");
+        Debug.LogWarning($"Distance: {hit.distance:F2} / {distance:F2}");
+        Debug.LogWarning($"Normal: {hit.normal}");
+        Debug.LogWarning($"Target was: {targetName}");
+
+        // Check if it's the player
+        if (hit.transform == player.transform)
+        {
+            Debug.Log($" HIT THE PLAYER! ");
+        }
+        else
+        {
+            Debug.LogWarning($" BLOCKED BY: {hit.transform.name} (Tag: {hit.transform.tag})");
+
+            // Draw extra visual for the blocker
+            Renderer blockerRenderer = hit.transform.GetComponent<Renderer>();
+            if (blockerRenderer != null)
+            {
+                // Highlight the blocker temporarily
+                StartCoroutine(HighlightObject(hit.transform, Color.red, 0.3f));
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator HighlightObject(Transform obj, Color color, float duration)
+    {
+        Renderer renderer = obj.GetComponent<Renderer>();
+        if (renderer == null) yield break;
+
+        Material originalMaterial = renderer.material;
+        renderer.material.color = color;
+        yield return new WaitForSeconds(duration);
+        renderer.material = originalMaterial;
+    }
+
+    
+
+    private void DrawHitMarker(Vector3 position, string objectName, float distance, bool isPlayer)
+    {
+        Color color = isPlayer ? Color.green : (objectName == "NO HIT" ? Color.gray : Color.red);
+
+        // Draw cross
+        Debug.DrawRay(position, Vector3.left * 0.3f, color, 0.5f);
+        Debug.DrawRay(position, Vector3.right * 0.3f, color, 0.5f);
+        Debug.DrawRay(position, Vector3.up * 0.3f, color, 0.5f);
+        Debug.DrawRay(position, Vector3.down * 0.3f, color, 0.5f);
+        Debug.DrawRay(position, Vector3.forward * 0.3f, color, 0.5f);
+        Debug.DrawRay(position, Vector3.back * 0.3f, color, 0.5f);
+
+        // Log to console
+        if (isPlayer)
+        {
+            Debug.Log($" HIT PLAYER! Distance: {distance:F2}m at {position}");
+        }
+        else if (objectName == "NO HIT")
+        {
+            Debug.Log($" NO HIT - Nothing detected at {distance:F2}m");
+        }
+        else
+        {
+            Debug.Log($" HIT: {objectName} at {distance:F2}m - Position: {position}");
+        }
+    }
+
+
 }

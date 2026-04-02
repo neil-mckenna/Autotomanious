@@ -7,81 +7,47 @@ using UnityEngine.InputSystem;
 
 public class GameManager : MonoBehaviour
 {
-    #region Properties, Fields
-
-    // Singleton for easy access
+    #region Singleton
     public static GameManager Instance { get; private set; }
-
-    // Player Singleton
-
-    private Player currentPlayer;
-    public Player GetPlayer() => currentPlayer;
-
-    // event delegate
-    public System.Action<Player> OnPlayerRegistered;
-
-    #region Player Registration
-
-    public void RegisterPlayer(Player player)
-    {
-        if (player == null)
-        {
-            Debug.LogError("Attempted to register null player!");
-            return;
-        }
-
-        currentPlayer = player;
-        Debug.Log($"Player registered: {player.name}");
-
-        // Notify all guards about the player
-        NotifyGuardsOfPlayer();
-
-        // Trigger event for any other systems that need to know
-        OnPlayerRegistered?.Invoke(player);
-    }
-
-    private void NotifyGuardsOfPlayer()
-    {
-        // Find all guards in the scene
-        Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
-        Debug.Log($"Notifying {guards.Length} guards about player");
-
-        foreach (var guard in guards)
-        {
-            if (guard != null && guard.currentBrain != null)
-            {
-                guard.currentBrain.SetPlayer(currentPlayer);
-            }
-        }
-    }
-
-    public void RefreshGuardReferences()
-    {
-        if (currentPlayer == null)
-        {
-            Debug.LogWarning("Can't refresh guards - no player registered");
-            return;
-        }
-
-        NotifyGuardsOfPlayer();
-    }
-
     #endregion
 
+    #region Fields
+    private Player currentPlayer;
+    private Camera playerCamera;
+    private bool isGameActive = true;
+    private bool isPaused = false;
+    private bool isGameFrozen = false;
 
+    // Stats
+    private float levelStartTime;
+    private float currentTime;
+    private int deathCount = 0;
+    private int escapeCount = 0;
+    private int alertCount = 0;
+    private int timesSpotted = 0;
+    private float stealthScore = 0f;
+    private int retries = 0;
+    private float totalAlertTime = 0f;
 
-    [Header("HUD Elements - Will be auto-found")]
-    [SerializeField] private TextMeshProUGUI HUDTimerText;
-    [SerializeField] private TextMeshProUGUI HUDDeathsText;
-    [SerializeField] private TextMeshProUGUI HUDEscapesText;
-    [SerializeField] private TextMeshProUGUI HUDAlertText;
+    // Records
+    private float fastestEscape = Mathf.Infinity;
+    private float bestStealthRating = 0f;
+    private int fewestAlerts = int.MaxValue;
+    private int fewestDeaths = int.MaxValue;
+    #endregion
+
+    #region Serialized Fields
+    [Header("HUD Elements")]
+    [SerializeField] private TextMeshProUGUI timerText;
+    [SerializeField] private TextMeshProUGUI deathsText;
+    [SerializeField] private TextMeshProUGUI escapesText;
+    [SerializeField] private TextMeshProUGUI alertsText;
     [SerializeField] private TextMeshProUGUI aiDisplayText;
-    [SerializeField] private TextMeshProUGUI HUDAlertTimeText;
-    [SerializeField] private TextMeshProUGUI HUDRetriesText;
+    [SerializeField] private TextMeshProUGUI alertTimeText;
+    [SerializeField] private TextMeshProUGUI retriesText;
+    [SerializeField] private GameObject topBar;
 
-    [SerializeField] private GameObject TopBar;
-
-    [Header("Victory Panel - Will be auto-found")]
+    [Header("Victory Panel")]
     [SerializeField] private GameObject victoryPanel;
     [SerializeField] private TextMeshProUGUI victoryTimerText;
     [SerializeField] private TextMeshProUGUI victoryDeathsText;
@@ -91,40 +57,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI bestStealthScoreText;
     [SerializeField] private Button victoryReplayButton;
     [SerializeField] private Button victoryQuitButton;
-
-    [Header("Game Over Panel - Will be auto-found")]
-    [SerializeField] private GameObject gameOverPanel;
-    [SerializeField] private TextMeshProUGUI gameOverTimeText;
-    [SerializeField] private TextMeshProUGUI gameOverAlertsText;
-    [SerializeField] private Button gameOverRetryButton;
-    [SerializeField] private Button gameOverMenuButton;
-
-    [Header("Game Over Panel - Zone Stats")]
-    [SerializeField] private TextMeshProUGUI gameOverStartAreaTimeText;
-    [SerializeField] private TextMeshProUGUI gameOverHutAreaTimeText;
-    [SerializeField] private TextMeshProUGUI gameOverMazeAreaTimeText;
-    [SerializeField] private TextMeshProUGUI gameOverLastAreaTimeText;
-    [SerializeField] private TextMeshProUGUI gameOverTotalZoneTimeText;
-    [SerializeField] private GameObject gameOverZoneStatsPanel;
-
-    [Header("Pause Settings")]
-    [SerializeField] private KeyCode pauseKey = KeyCode.Escape;
-    [SerializeField] private bool isPaused = false;
-
-    [Header("Stats Tracking")]
-    [SerializeField] private float levelStartTime;
-    [SerializeField] private float currentTime;
-    [SerializeField] private int deathCount = 0;
-    [SerializeField] private int escapeCount = 0;
-    [SerializeField] private int alertCount = 0;
-    [SerializeField] private int timesSpotted = 0;
-    [SerializeField] private float stealthScore = 0f;
-
-    [SerializeField] private int retries = 0;
-
-    [SerializeField] private float totalAlertTime = 0f;
-
-    [Header("Victory Panel - Zone Stats")]
     [SerializeField] private TextMeshProUGUI startAreaTimeText;
     [SerializeField] private TextMeshProUGUI hutAreaTimeText;
     [SerializeField] private TextMeshProUGUI mazeAreaTimeText;
@@ -132,34 +64,35 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI totalZoneTimeText;
     [SerializeField] private GameObject zoneStatsPanel;
 
-    [Header("Best Records")]
-    [SerializeField] private float fastestEscape = Mathf.Infinity;
-    [SerializeField] private float bestStealthRating = 0f;
-    [SerializeField] private int fewestAlerts = int.MaxValue;
-    [SerializeField] private int fewestDeaths = int.MaxValue;
+    [Header("Game Over Panel")]
+    [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private TextMeshProUGUI gameOverTimeText;
+    [SerializeField] private TextMeshProUGUI gameOverAlertsText;
+    [SerializeField] private Button gameOverRetryButton;
+    [SerializeField] private Button gameOverMenuButton;
+    [SerializeField] private TextMeshProUGUI gameOverStartAreaTimeText;
+    [SerializeField] private TextMeshProUGUI gameOverHutAreaTimeText;
+    [SerializeField] private TextMeshProUGUI gameOverMazeAreaTimeText;
+    [SerializeField] private TextMeshProUGUI gameOverLastAreaTimeText;
+    [SerializeField] private TextMeshProUGUI gameOverTotalZoneTimeText;
+    [SerializeField] private GameObject gameOverZoneStatsPanel;
 
-    [Header("Scene Names")]
+    [Header("Settings")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
+    #endregion
 
-    [Header("Player Reference")]
-    //[SerializeField] private Transform playerTransform;
-
-    private bool isGameActive = true;
-
-    // Public getters
+    #region Properties
+    public Player GetPlayer() => currentPlayer;
     public bool IsGameActive() => isGameActive;
     public float GetCurrentTime() => currentTime;
     public int GetDeathCount() => deathCount;
     public int GetAlertCount() => alertCount;
-    //public Transform GetPlayerTransform() => playerTransform;
-
+    public System.Action<Player> OnPlayerRegistered;
     #endregion
 
-    #region Start
-
+    #region Unity Lifecycle
     private void Awake()
     {
-        // Singleton setup
         if (Instance == null)
         {
             Instance = this;
@@ -176,65 +109,105 @@ public class GameManager : MonoBehaviour
     {
         levelStartTime = Time.time;
         LoadBestRecords();
-
-
-        // Find UI elements
         FindUIReferences();
+        AssignPlayerCamera();
+        DebugUI();
     }
 
-    private void OnEnable()
+    private void OnEnable() => SceneManager.sceneLoaded += OnSceneLoaded;
+    private void OnDisable() => SceneManager.sceneLoaded -= OnSceneLoaded;
+
+    private void Update()
     {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
+        if (Keyboard.current?.escapeKey.wasPressedThisFrame == true)
+            TogglePause();
 
-    private void OnDisable()
-    {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
+        if (isGameActive && !isPaused)
+        {
+            currentTime = Time.time - levelStartTime;
+            UpdateTimerUI();
+            CalculateStealthScore();
+        }
     }
-
     #endregion
 
-    #region OnScene Event
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    #region Camera Management
+    private void AssignPlayerCamera()
     {
-        // Store current retries before reset
-        int currentRetries = retries;
+        Drive drive = FindAnyObjectByType<Drive>();
+        Camera playerCam = drive?.playerCamera ?? Camera.main;
 
-        // Find UI elements in the new scene
-        FindUIReferences();
-
-        // Reset game state 
-        ResetGame();
-
-
-        // Restore retries
-        retries = currentRetries;
-
-        // Update the UI with correct retry count
-        if (HUDRetriesText != null)
-            HUDRetriesText.text = $"Retries: {retries}";
-
-        // Reset pause state on scene load
-        isPaused = false;
-        Time.timeScale = 1f;
-
-        if (currentPlayer != null)
+        if (playerCam == null)
         {
-            // Small delay to ensure all guards have spawned
-            Invoke(nameof(RefreshGuardReferences), 0.1f);
+            GameObject camObj = GameObject.FindGameObjectWithTag("MainCamera");
+            playerCam = camObj?.GetComponent<Camera>();
         }
 
+        if (playerCam != null)
+        {
+            Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (Canvas canvas in canvases)
+            {
+                if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+                    canvas.worldCamera = playerCam;
+            }
+        }
+        else
+        {
+            Debug.LogError("No player camera found for UI!");
+        }
     }
-
     #endregion
 
-    
+    #region Player Registration
+    public void RegisterPlayer(Player player)
+    {
+        if (player == null)
+        {
+            Debug.LogError("Attempted to register null player!");
+            return;
+        }
 
-    #region UI
+        currentPlayer = player;
 
+        Drive drive = player.GetComponent<Drive>();
+        if (drive?.playerCamera != null)
+            SetPlayerCamera(drive.playerCamera);
+
+        NotifyGuardsOfPlayer();
+        OnPlayerRegistered?.Invoke(player);
+    }
+
+    private void SetPlayerCamera(Camera camera)
+    {
+        playerCamera = camera;
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        foreach (Canvas canvas in canvases)
+        {
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+                canvas.worldCamera = playerCamera;
+        }
+    }
+
+    private void NotifyGuardsOfPlayer()
+    {
+        Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
+        foreach (var guard in guards)
+        {
+            if (guard?.currentBrain != null)
+                guard.currentBrain.SetPlayer(currentPlayer);
+        }
+    }
+
+    public void RefreshGuardReferences()
+    {
+        if (currentPlayer != null) NotifyGuardsOfPlayer();
+    }
+    #endregion
+
+    #region UI Management
     private void FindUIReferences()
     {
-        // Find the main canvas
         Canvas canvas = FindAnyObjectByType<Canvas>();
         if (canvas == null)
         {
@@ -242,67 +215,52 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        LogAllChildren(canvas.transform, 0);
+        // HUD
+        timerText = FindText(canvas.transform, "HUDTimerText");
+        deathsText = FindText(canvas.transform, "HUDDeathsText");
+        escapesText = FindText(canvas.transform, "HUDEscapesText");
+        alertsText = FindText(canvas.transform, "HUDAlertText");
+        aiDisplayText = FindText(canvas.transform, "AIDisplayText");
+        alertTimeText = FindText(canvas.transform, "HUDAlertTime");
+        retriesText = FindText(canvas.transform, "HUDRetriesText");
+        topBar = FindChild(canvas.transform, "TopBar")?.gameObject;
 
-        // ----- HUD ELEMENTS  ---
-        HUDTimerText = FindTextInChildren(canvas.transform, "HUDTimerText");
-        HUDDeathsText = FindTextInChildren(canvas.transform, "HUDDeathsText");
-        HUDEscapesText = FindTextInChildren(canvas.transform, "HUDEscapesText");
-        HUDAlertText = FindTextInChildren(canvas.transform, "HUDAlertText");
-        aiDisplayText = FindTextInChildren(canvas.transform, "AIDisplayText");
-        HUDAlertTimeText = FindTextInChildren(canvas.transform, "HUDAlertTime");
-        HUDRetriesText = FindTextInChildren(canvas.transform, "HUDRetriesText");
+        // Panels
+        victoryPanel = FindChild(canvas.transform, "victoryPanel")?.gameObject;
+        gameOverPanel = FindChild(canvas.transform, "gameOverPanel")?.gameObject;
 
-        TopBar = FindChildByName(canvas.transform, "TopBar")?.gameObject;
-
-        // ----- UI PANELS -----
-        victoryPanel = FindChildByName(canvas.transform, "victoryPanel")?.gameObject;
-        gameOverPanel = FindChildByName(canvas.transform, "gameOverPanel")?.gameObject;
-
-        // ----- VICTORY PANEL ELEMENTS -----
+        // Victory Panel Elements
         if (victoryPanel != null)
         {
-            victoryTimerText = FindTextInChildren(victoryPanel.transform, "victoryTimerText");
-            victoryDeathsText = FindTextInChildren(victoryPanel.transform, "victoryDeathsText");
-            victoryAlertsText = FindTextInChildren(victoryPanel.transform, "victoryAlertsText");
-            victoryStealthScoreText = FindTextInChildren(victoryPanel.transform, "victoryStealthScoreText");
-            bestTimeText = FindTextInChildren(victoryPanel.transform, "bestTimeText");
-            bestStealthScoreText = FindTextInChildren(victoryPanel.transform, "bestStealthScoreText");
-
-            victoryReplayButton = FindButtonInChildren(victoryPanel.transform, "victoryReplayButton");
-            victoryQuitButton = FindButtonInChildren(victoryPanel.transform, "victoryQuitButton");
-
-            startAreaTimeText = FindTextInChildren(victoryPanel.transform, "StartAreaTimeText");
-            hutAreaTimeText = FindTextInChildren(victoryPanel.transform, "HutAreaTimeText");
-            mazeAreaTimeText = FindTextInChildren(victoryPanel.transform, "MazeAreaTimeText");
-            lastAreaTimeText = FindTextInChildren(victoryPanel.transform, "LastAreaTimeText");
-            totalZoneTimeText = FindTextInChildren(victoryPanel.transform, "TotalZoneTimeText");
-            zoneStatsPanel = FindChildByName(victoryPanel.transform, "ZoneStatsPanel")?.gameObject;
-        }
-        else
-        {
-            Debug.LogWarning("VictoryPanel not found in canvas");
+            victoryTimerText = FindText(victoryPanel.transform, "victoryTimerText");
+            victoryDeathsText = FindText(victoryPanel.transform, "victoryDeathsText");
+            victoryAlertsText = FindText(victoryPanel.transform, "victoryAlertsText");
+            victoryStealthScoreText = FindText(victoryPanel.transform, "victoryStealthScoreText");
+            bestTimeText = FindText(victoryPanel.transform, "bestTimeText");
+            bestStealthScoreText = FindText(victoryPanel.transform, "bestStealthScoreText");
+            victoryReplayButton = FindButton(victoryPanel.transform, "victoryReplayButton");
+            victoryQuitButton = FindButton(victoryPanel.transform, "victoryQuitButton");
+            startAreaTimeText = FindText(victoryPanel.transform, "StartAreaTimeText");
+            hutAreaTimeText = FindText(victoryPanel.transform, "HutAreaTimeText");
+            mazeAreaTimeText = FindText(victoryPanel.transform, "MazeAreaTimeText");
+            lastAreaTimeText = FindText(victoryPanel.transform, "LastAreaTimeText");
+            totalZoneTimeText = FindText(victoryPanel.transform, "TotalZoneTimeText");
+            zoneStatsPanel = FindChild(victoryPanel.transform, "ZoneStatsPanel")?.gameObject;
         }
 
-        // ----- GAME OVER PANEL ELEMENTS -----
+        // Game Over Panel Elements
         if (gameOverPanel != null)
         {
-            gameOverTimeText = FindTextInChildren(gameOverPanel.transform, "gameOverTimeText");
-            gameOverAlertsText = FindTextInChildren(gameOverPanel.transform, "gameOverAlertsText");
-
-            gameOverRetryButton = FindButtonInChildren(gameOverPanel.transform, "gameOverRetryButton");
-            gameOverMenuButton = FindButtonInChildren(gameOverPanel.transform, "gameOverMenuButton");
-
-            gameOverStartAreaTimeText = FindTextInChildren(gameOverPanel.transform, "GameOverStartAreaTimeText");
-            gameOverHutAreaTimeText = FindTextInChildren(gameOverPanel.transform, "GameOverHutAreaTimeText");
-            gameOverMazeAreaTimeText = FindTextInChildren(gameOverPanel.transform, "GameOverMazeAreaTimeText");
-            gameOverLastAreaTimeText = FindTextInChildren(gameOverPanel.transform, "GameOverLastAreaTimeText");
-            gameOverTotalZoneTimeText = FindTextInChildren(gameOverPanel.transform, "GameOverTotalZoneTimeText");
-            gameOverZoneStatsPanel = FindChildByName(gameOverPanel.transform, "GameOverZoneStatsPanel")?.gameObject;
-        }
-        else
-        {
-            Debug.LogWarning("GameOverPanel not found in canvas");
+            gameOverTimeText = FindText(gameOverPanel.transform, "gameOverTimeText");
+            gameOverAlertsText = FindText(gameOverPanel.transform, "gameOverAlertsText");
+            gameOverRetryButton = FindButton(gameOverPanel.transform, "gameOverRetryButton");
+            gameOverMenuButton = FindButton(gameOverPanel.transform, "gameOverMenuButton");
+            gameOverStartAreaTimeText = FindText(gameOverPanel.transform, "GameOverStartAreaTimeText");
+            gameOverHutAreaTimeText = FindText(gameOverPanel.transform, "GameOverHutAreaTimeText");
+            gameOverMazeAreaTimeText = FindText(gameOverPanel.transform, "GameOverMazeAreaTimeText");
+            gameOverLastAreaTimeText = FindText(gameOverPanel.transform, "GameOverLastAreaTimeText");
+            gameOverTotalZoneTimeText = FindText(gameOverPanel.transform, "GameOverTotalZoneTimeText");
+            gameOverZoneStatsPanel = FindChild(gameOverPanel.transform, "GameOverZoneStatsPanel")?.gameObject;
         }
 
         // Hide panels initially
@@ -310,233 +268,116 @@ public class GameManager : MonoBehaviour
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
     }
 
-    // Helper: Find a TextMeshProUGUI component in children by name
-    private TextMeshProUGUI FindTextInChildren(Transform parent, string name)
+    private TextMeshProUGUI FindText(Transform parent, string name)
     {
         Transform child = FindChildRecursive(parent, name);
-        if (child != null)
-        {
-            TextMeshProUGUI text = child.GetComponent<TextMeshProUGUI>();
-            if (text != null)
-            {
-                return text;
-            }
-        }
-        Debug.LogWarning($"Text '{name}' not found");
-        return null;
+        return child?.GetComponent<TextMeshProUGUI>();
     }
 
-    // Helper: Find a Button component in children by name
-    private Button FindButtonInChildren(Transform parent, string name)
+    private Button FindButton(Transform parent, string name)
     {
         Transform child = FindChildRecursive(parent, name);
-        if (child != null)
-        {
-            Button button = child.GetComponent<Button>();
-            if (button != null)
-            {
-                return button;
-            }
-        }
-        Debug.LogWarning($"Button '{name}' not found");
-        return null;
+        return child?.GetComponent<Button>();
     }
 
-    // Helper: Find child by name, recursively
+    private Transform FindChild(Transform parent, string name)
+    {
+        return FindChildRecursive(parent, name);
+    }
+
     private Transform FindChildRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
         {
-            if (child.name == name)
-                return child;
-
+            if (child.name == name) return child;
             Transform result = FindChildRecursive(child, name);
-            if (result != null)
-                return result;
+            if (result != null) return result;
         }
         return null;
     }
-
-    // Helper: Find direct child by name 
-    private Transform FindChildByName(Transform parent, string name)
-    {
-        foreach (Transform child in parent)
-        {
-            if (child.name == name)
-                return child;
-        }
-        return null;
-    }
-
-    // Helper: Log all children for debugging
-    private void LogAllChildren(Transform parent, int depth)
-    {
-        string indent = new string(' ', depth * 2);
-        foreach (Transform child in parent)
-        {
-            LogAllChildren(child, depth + 1);
-        }
-    }
-
     #endregion
 
-    #region Updates
+    #region UI Updates
 
-    private void Update()
+    public void DebugUI()
     {
-        // Check for Escape key using new input system
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        Debug.Log("=== UI DEBUG ===");
+
+        // Check Canvas
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        Debug.Log($"Canvas found: {canvas != null}");
+        if (canvas != null)
         {
-            TogglePause();
+            Debug.Log($"Canvas name: {canvas.name}");
+            Debug.Log($"Canvas render mode: {canvas.renderMode}");
+            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                Debug.Log($"Canvas world camera: {canvas.worldCamera?.name ?? "NULL"}");
+            }
         }
 
-        if (isGameActive && !isPaused)
+        // Check HUD elements
+        Debug.Log($"Timer Text: {timerText != null}");
+        Debug.Log($"Deaths Text: {deathsText != null}");
+        Debug.Log($"Escapes Text: {escapesText != null}");
+        Debug.Log($"Alerts Text: {alertsText != null}");
+        Debug.Log($"Retries Text: {retriesText != null}");
+
+        // Check Panels
+        Debug.Log($"Victory Panel: {victoryPanel != null}");
+        Debug.Log($"Game Over Panel: {gameOverPanel != null}");
+
+        // Check if UI is active
+        if (timerText != null)
+            Debug.Log($"Timer text value: {timerText.text}");
+
+        // List all TextMeshPro objects in scene
+        TextMeshProUGUI[] allTexts = FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
+        Debug.Log($"Total TextMeshPro objects in scene: {allTexts.Length}");
+        foreach (var text in allTexts)
         {
-            currentTime = Time.time - levelStartTime;
-            UpdateTimer();
-            CalculateStealthScore();
+            Debug.Log($"  - {text.name} (active: {text.gameObject.activeSelf})");
         }
     }
-
-    private void UpdateTimer()
+    private void UpdateTimerUI()
     {
-        int minutes = Mathf.FloorToInt(currentTime / 60);
-        int seconds = Mathf.FloorToInt(currentTime % 60);
-
-        if (HUDTimerText != null)
+        if (timerText != null)
         {
-            HUDTimerText.text = $"{minutes:00}:{seconds:00}";
+            int minutes = Mathf.FloorToInt(currentTime / 60);
+            int seconds = Mathf.FloorToInt(currentTime % 60);
+            timerText.text = $"{minutes:00}:{seconds:00}";
         }
-    }
-
-    private void CalculateStealthScore()
-    {
-        float baseScore = 1000f;
-        float alertPenalty = alertCount * 50f;
-        float spottedPenalty = timesSpotted * 25f;
-        float deathPenalty = deathCount * 200f;
-        float timePenalty = currentTime * 2f;
-
-        stealthScore = baseScore - alertPenalty - spottedPenalty - deathPenalty - timePenalty;
-        stealthScore = Mathf.Max(0, stealthScore);
     }
 
     private void UpdateAllUI()
     {
-        if (HUDDeathsText != null) HUDDeathsText.text = $"Deaths: {deathCount}";
-        if (HUDAlertText != null) HUDAlertText.text = $"Alerts: {alertCount}";
-        if (HUDEscapesText != null) HUDEscapesText.text = $"Escapes: {escapeCount}";
-        if (HUDTimerText != null) HUDTimerText.text = "00:00";
-        if (aiDisplayText != null) aiDisplayText.text = $"Current AI: {AISettings.Instance.selectedAIType.ToString()}";
+        if (deathsText != null) deathsText.text = $"Deaths: {deathCount}";
+        if (alertsText != null) alertsText.text = $"Alerts: {alertCount}";
+        if (escapesText != null) escapesText.text = $"Escapes: {escapeCount}";
+        if (aiDisplayText != null && AISettings.Instance != null)
+            aiDisplayText.text = $"Current AI: {AISettings.Instance.selectedAIType}";
     }
 
+    private void CalculateStealthScore()
+    {
+        stealthScore = Mathf.Max(0, 1000f - (alertCount * 50f) - (timesSpotted * 25f) - (deathCount * 200f) - (currentTime * 2f));
+    }
     #endregion
 
-    #region Zone Statistics
-
-    private void UpdateZoneStatsDisplay()
-    {
-        if (ZoneManager.Instance == null) return;
-
-        var stats = ZoneManager.Instance.GetZoneStats();
-
-        if (startAreaTimeText != null)
-            startAreaTimeText.text = GetZoneTimeWithDecimal(stats, 1);
-        if (hutAreaTimeText != null)
-            hutAreaTimeText.text = GetZoneTimeWithDecimal(stats, 2);
-        if (mazeAreaTimeText != null)
-            mazeAreaTimeText.text = GetZoneTimeWithDecimal(stats, 3);
-        if (lastAreaTimeText != null)
-            lastAreaTimeText.text = GetZoneTimeWithDecimal(stats, 4);
-
-        float totalTime = 0f;
-        foreach (var zone in stats)
-        {
-            totalTime += zone.timeSpent;
-        }
-
-        if (totalZoneTimeText != null)
-        {
-            int minutes = Mathf.FloorToInt(totalTime / 60);
-            int seconds = Mathf.FloorToInt(totalTime % 60);
-            totalZoneTimeText.text = $"{totalTime:F2}s";
-        }
-
-        if (zoneStatsPanel != null)
-            zoneStatsPanel.SetActive(true);
-    }
-
-    private void UpdateGameOverZoneStatsDisplay()
-    {
-        if (ZoneManager.Instance == null) return;
-
-        var stats = ZoneManager.Instance.GetZoneStats();
-
-        if (gameOverStartAreaTimeText != null)
-            gameOverStartAreaTimeText.text = GetZoneTimeWithDecimal(stats, 1);
-        if (gameOverHutAreaTimeText != null)
-            gameOverHutAreaTimeText.text = GetZoneTimeWithDecimal(stats, 2);
-        if (gameOverMazeAreaTimeText != null)
-            gameOverMazeAreaTimeText.text = GetZoneTimeWithDecimal(stats, 3);
-        if (gameOverLastAreaTimeText != null)
-            gameOverLastAreaTimeText.text = GetZoneTimeWithDecimal(stats, 4);
-
-        float totalTime = 0f;
-        foreach (var zone in stats)
-        {
-            totalTime += zone.timeSpent;
-        }
-
-        if (gameOverTotalZoneTimeText != null)
-        {
-            gameOverTotalZoneTimeText.text = $"{totalTime:F1}s";
-        }
-
-        if (gameOverZoneStatsPanel != null)
-            gameOverZoneStatsPanel.SetActive(true);
-    }
-
-    private string GetZoneTimeWithDecimal(List<ZoneManager.ZoneData> stats, int zoneNumber)
-    {
-        foreach (var zone in stats)
-        {
-            if (zone.zoneNumber == zoneNumber)
-            {
-                return $"{zone.timeSpent:F2}s";
-            }
-        }
-        return "0.00s";
-    }
-
-    public void ResetZoneStats()
-    {
-        if (ZoneManager.Instance != null)
-            ZoneManager.Instance.ResetStats();
-    }
-
-    #endregion
-
-    #region Guards
-
-    public void GuardAlerted()
-    {
-        if (!isGameActive) return;
-
-        alertCount++;
-        Debug.Log($"Guard alerted! Total alerts: {alertCount}");
-
-        if (HUDAlertText != null)
-            HUDAlertText.text = $"Alerts: {alertCount}";
-    }
+    #region Game Events
 
     public void GuardLostPlayer()
     {
-        // Can be used for tracking
+        // Can be used for tracking when guards lose sight of player
+        // For now, just a placeholder
+        Debug.Log("Guard lost the player");
     }
-
-    #endregion
-
-    #region Player
+    public void GuardAlerted()
+    {
+        if (!isGameActive) return;
+        alertCount++;
+        if (alertsText != null) alertsText.text = $"Alerts: {alertCount}";
+    }
 
     public void PlayerSpotted()
     {
@@ -547,13 +388,8 @@ public class GameManager : MonoBehaviour
     public void PlayerDied(string cause)
     {
         if (!isGameActive) return;
-
         deathCount++;
-        Debug.Log($"Player died: {cause}. Death #{deathCount}");
-
-        if (HUDDeathsText != null)
-            HUDDeathsText.text = $"Deaths: {deathCount}";
-
+        if (deathsText != null) deathsText.text = $"Deaths: {deathCount}";
         isGameActive = false;
         ShowGameOver();
     }
@@ -561,266 +397,71 @@ public class GameManager : MonoBehaviour
     public void PlayerEscaped()
     {
         if (!isGameActive) return;
-
-        PrintZoneStats();
-
         escapeCount++;
-        Debug.Log($"PLAYER ESCAPED! Escape #{escapeCount}");
 
-        float finalTime = currentTime;
-        float finalStealth = stealthScore;
+        CheckNewRecords(currentTime, stealthScore, alertCount, deathCount);
 
-        Debug.Log($"Time: {finalTime:F2} seconds");
-        Debug.Log($"Stealth Score: {finalStealth:F0}");
-        Debug.Log($"Alerts: {alertCount}");
-        Debug.Log($"Deaths: {deathCount}");
+        if (escapesText != null) escapesText.text = $"Escapes: {escapeCount}";
 
-        CheckNewRecords(finalTime, finalStealth, alertCount, deathCount);
-
-        if (HUDEscapesText != null)
-            HUDEscapesText.text = $"Escapes: {escapeCount}";
-
-        ShowVictory(finalTime, finalStealth);
+        ShowVictory(currentTime, stealthScore);
         isGameActive = false;
     }
-
-    public void PrintZoneStats()
-    {
-        if (ZoneManager.Instance != null)
-            ZoneManager.Instance.PrintStats();
-    }
-
     #endregion
 
-    #region Scores, Saves and UI
-
-    private void CheckNewRecords(float time, float stealth, int alerts, int deaths)
+    #region Scene Management
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        bool newRecord = false;
+        int currentRetries = retries;
+        FindUIReferences();
+        ResetGame();
+        retries = currentRetries;
 
-        if (time < fastestEscape)
-        {
-            fastestEscape = time;
-            Debug.Log($"NEW RECORD! Fastest escape: {FormatTime(fastestEscape)}");
-            newRecord = true;
-        }
+        if (retriesText != null) retriesText.text = $"Retries: {retries}";
 
-        if (stealth > bestStealthRating)
-        {
-            bestStealthRating = stealth;
-            Debug.Log($"NEW RECORD! Best stealth: {bestStealthRating:F0}");
-            newRecord = true;
-        }
+        isPaused = false;
+        Time.timeScale = 1f;
 
-        if (alerts < fewestAlerts)
-        {
-            fewestAlerts = alerts;
-            Debug.Log($"NEW RECORD! Fewest alerts: {fewestAlerts}");
-            newRecord = true;
-        }
+        DebugUI();
 
-        if (deaths < fewestDeaths)
-        {
-            fewestDeaths = deaths;
-            Debug.Log($"NEW RECORD! Fewest deaths: {fewestDeaths}");
-            newRecord = true;
-        }
-
-        if (newRecord)
-        {
-            SaveBestRecords();
-        }
+        if (currentPlayer != null)
+            Invoke(nameof(RefreshGuardReferences), 0.1f);
     }
-
-    private void ShowGameOver()
-    {
-        if (gameOverPanel == null)
-        {
-            Debug.LogError("GameOverPanel is null! Can't show panel.");
-            return;
-        }
-
-        if (!isPaused)
-        {
-            gameOverPanel.SetActive(true);
-            FreezeGame();
-
-            if (gameOverTimeText != null)
-                gameOverTimeText.text = $"Time: {FormatTime(currentTime)}";
-
-            if (gameOverAlertsText != null)
-                gameOverAlertsText.text = $"Alerts: {alertCount}";
-
-            UpdateGameOverZoneStatsDisplay();
-
-            if (gameOverRetryButton != null)
-            {
-                var btnText = gameOverRetryButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-                if (btnText != null) btnText.text = "RETRY";
-                gameOverRetryButton.onClick.RemoveAllListeners();
-                gameOverRetryButton.onClick.AddListener(RestartGame);
-            }
-
-            if (gameOverMenuButton != null)
-            {
-                var btnText = gameOverMenuButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-                if (btnText != null) btnText.text = "MAIN MENU";
-                gameOverMenuButton.onClick.RemoveAllListeners();
-                gameOverMenuButton.onClick.AddListener(GoToMainMenu);
-            }
-
-            isGameActive = false;
-        }
-    }
-
-    private void ShowVictory(float time, float stealth)
-    {
-        if (victoryPanel == null) return;
-
-        victoryPanel.SetActive(true);
-        FreezeGame();
-
-        string timeString = FormatTime(time);
-
-        if (victoryTimerText != null)
-            victoryTimerText.text = $"Time: {timeString}";
-
-        if (victoryDeathsText != null)
-            victoryDeathsText.text = $"Deaths: {deathCount}";
-
-        if (victoryAlertsText != null)
-            victoryAlertsText.text = $"Alerts: {alertCount}";
-
-        if (victoryStealthScoreText != null)
-            victoryStealthScoreText.text = $"Stealth Score: {stealth:F0}";
-
-        if (bestTimeText != null)
-        {
-            if (fastestEscape < Mathf.Infinity)
-                bestTimeText.text = $"Best Time: {FormatTime(fastestEscape)}";
-            else
-                bestTimeText.text = "Best Time: --:--";
-        }
-
-        if (bestStealthScoreText != null)
-        {
-            if (bestStealthRating > 0)
-                bestStealthScoreText.text = $"Best Stealth: {bestStealthRating:F0}";
-            else
-                bestStealthScoreText.text = "Best Stealth: 0";
-        }
-
-        UpdateZoneStatsDisplay();
-
-        if (victoryReplayButton != null)
-        {
-            victoryReplayButton.onClick.RemoveAllListeners();
-            victoryReplayButton.onClick.AddListener(RestartGame);
-        }
-
-        if (victoryQuitButton != null)
-        {
-            victoryQuitButton.onClick.RemoveAllListeners();
-            victoryQuitButton.onClick.AddListener(GoToMainMenu);
-        }
-    }
-
-    private string FormatTime(float timeInSeconds)
-    {
-        int minutes = Mathf.FloorToInt(timeInSeconds / 60);
-        int seconds = Mathf.FloorToInt(timeInSeconds % 60);
-        return $"{minutes:00}:{seconds:00}";
-    }
-
-    private void SaveBestRecords()
-    {
-        PlayerPrefs.SetFloat("FastestEscape", fastestEscape);
-        PlayerPrefs.SetFloat("BestStealth", bestStealthRating);
-        PlayerPrefs.SetInt("FewestAlerts", fewestAlerts);
-        PlayerPrefs.SetInt("FewestDeaths", fewestDeaths);
-        PlayerPrefs.Save();
-        Debug.Log("Records saved to PlayerPrefs!");
-    }
-
-    private void LoadBestRecords()
-    {
-        fastestEscape = PlayerPrefs.GetFloat("FastestEscape", Mathf.Infinity);
-        bestStealthRating = PlayerPrefs.GetFloat("BestStealth", 0f);
-        fewestAlerts = PlayerPrefs.GetInt("FewestAlerts", int.MaxValue);
-        fewestDeaths = PlayerPrefs.GetInt("FewestDeaths", int.MaxValue);
-    }
-
-    public void ResetBestScores()
-    {
-        fastestEscape = Mathf.Infinity;
-        bestStealthRating = 0f;
-        fewestAlerts = int.MaxValue;
-        fewestDeaths = int.MaxValue;
-        SaveBestRecords();
-        Debug.Log("Best scores have been reset!");
-
-        if (bestTimeText != null)
-            bestTimeText.text = "Best Time: --:--";
-        if (bestStealthScoreText != null)
-            bestStealthScoreText.text = "Best Stealth: 0";
-    }
-
-    [ContextMenu("Reset Best Scores")]
-    public void ContextResetBestScores()
-    {
-        ResetBestScores();
-    }
-
-    #endregion
-
-    #region Resets, Navigation
 
     private void ResetGame()
     {
         levelStartTime = Time.time;
         currentTime = 0f;
-
         alertCount = 0;
         timesSpotted = 0;
         stealthScore = 0f;
         isGameActive = true;
 
-        if (ZoneManager.Instance != null)
-        {
-            ZoneManager.Instance.ResetStats();
-        }
+        ZoneManager.Instance?.ResetStats();
 
         if (victoryPanel != null) victoryPanel.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
-
         UpdateAllUI();
-
-        if (HUDTimerText != null) HUDTimerText.text = "00:00";
+        if (timerText != null) timerText.text = "00:00";
     }
 
     public void RestartLevel()
     {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         UnfreezeGame();
-
-        Debug.Log($"RestartLevel called. Current retries: {retries}");
         retries++;
-        Debug.Log($"Retries now: {retries}");
 
-        if (ZoneManager.Instance != null)
-        {
-            ZoneManager.Instance.ResetStats();
-        }
+        ZoneManager.Instance?.ResetStats();
 
         isGameActive = true;
         deathCount = 0;
         escapeCount = 0;
         alertCount = 0;
         timesSpotted = 0;
- 
 
-        if (HUDRetriesText != null)
-            HUDRetriesText.text = $"Retries: {retries}";
+        if (retriesText != null) retriesText.text = $"Retries: {retries}";
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
@@ -828,7 +469,12 @@ public class GameManager : MonoBehaviour
     public void GoToMainMenu()
     {
         UnfreezeGame();
+        ResetStats();
+        SceneManager.LoadScene(mainMenuSceneName);
+    }
 
+    private void ResetStats()
+    {
         deathCount = 0;
         alertCount = 0;
         timesSpotted = 0;
@@ -837,54 +483,16 @@ public class GameManager : MonoBehaviour
         isGameActive = true;
         retries = 0;
 
-        if (HUDDeathsText != null)
-            HUDDeathsText.text = $"Deaths: {deathCount}";
-        if (HUDAlertText != null)
-            HUDAlertText.text = $"Alerts: {alertCount}";
-        if (HUDEscapesText != null)
-            HUDEscapesText.text = $"Escapes: {escapeCount}";
-        if (HUDRetriesText != null)
-            HUDRetriesText.text = $"Retries: {retries}";
-
-        SceneManager.LoadScene(mainMenuSceneName);
+        UpdateAllUI();
+        if (retriesText != null) retriesText.text = $"Retries: {retries}";
     }
-
-    #region Time Control
-
-    private bool isGameFrozen = false;
-
-    public void FreezeGame()
-    {
-        if (isGameFrozen) return;
-        isGameFrozen = true;
-        Time.timeScale = 0f;
-        Debug.Log("Game time frozen");
-    }
-
-    public void UnfreezeGame()
-    {
-        if (!isGameFrozen) return;
-        isGameFrozen = false;
-        Time.timeScale = 1f;
-        Debug.Log("Game time unfrozen");
-    }
-
-    public void RestartGame()
-    {
-        UnfreezeGame();
-        RestartLevel();
-    }
-
     #endregion
 
-    #region Pause Menu
-
+    #region Pause System
     public void TogglePause()
     {
-        if (isPaused)
-            ResumeGame();
-        else
-            PauseGame();
+        if (isPaused) ResumeGame();
+        else PauseGame();
     }
 
     public void PauseGame()
@@ -894,36 +502,32 @@ public class GameManager : MonoBehaviour
         isPaused = true;
         Time.timeScale = 0f;
 
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
-
-            if (gameOverTimeText != null)
-                gameOverTimeText.text = "PAUSED";
-            if (gameOverAlertsText != null)
-                gameOverAlertsText.text = "Game is paused";
-
-            if (gameOverZoneStatsPanel != null)
-                gameOverZoneStatsPanel.SetActive(false);
+            if (gameOverTimeText != null) gameOverTimeText.text = "PAUSED";
+            if (gameOverAlertsText != null) gameOverAlertsText.text = "Game is paused";
+            if (gameOverZoneStatsPanel != null) gameOverZoneStatsPanel.SetActive(false);
 
             if (gameOverRetryButton != null)
             {
-                var btnText = gameOverRetryButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-                if (btnText != null) btnText.text = "RESUME";
                 gameOverRetryButton.onClick.RemoveAllListeners();
                 gameOverRetryButton.onClick.AddListener(ResumeGame);
+                var btnText = gameOverRetryButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "RESUME";
             }
 
             if (gameOverMenuButton != null)
             {
-                var btnText = gameOverMenuButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
-                if (btnText != null) btnText.text = "QUIT TO MENU";
                 gameOverMenuButton.onClick.RemoveAllListeners();
                 gameOverMenuButton.onClick.AddListener(GoToMainMenu);
+                var btnText = gameOverMenuButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                if (btnText != null) btnText.text = "QUIT TO MENU";
             }
         }
-
-        Debug.Log("Game Paused");
     }
 
     public void ResumeGame()
@@ -933,19 +537,174 @@ public class GameManager : MonoBehaviour
         isPaused = false;
         Time.timeScale = 1f;
 
-        if (gameOverPanel != null)
-        {
-            gameOverPanel.SetActive(false);
-        }
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
 
-        Debug.Log("Game Resumed");
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
+    public void FreezeGame()
+    {
+        if (isGameFrozen) return;
+        isGameFrozen = true;
+        Time.timeScale = 0f;
+    }
+
+    public void UnfreezeGame()
+    {
+        if (!isGameFrozen) return;
+        isGameFrozen = false;
+        Time.timeScale = 1f;
+    }
     #endregion
 
-    private void OnApplicationQuit()
+    #region Victory & Game Over
+    private void ShowGameOver()
     {
-        Time.timeScale = 1f;
+        if (gameOverPanel == null || isPaused) return;
+
+        gameOverPanel.SetActive(true);
+        FreezeGame();
+
+        if (gameOverTimeText != null) gameOverTimeText.text = $"Time: {FormatTime(currentTime)}";
+        if (gameOverAlertsText != null) gameOverAlertsText.text = $"Alerts: {alertCount}";
+
+        UpdateGameOverZoneStatsDisplay();
+
+        if (gameOverRetryButton != null)
+        {
+            gameOverRetryButton.onClick.RemoveAllListeners();
+            gameOverRetryButton.onClick.AddListener(RestartLevel);
+        }
+
+        if (gameOverMenuButton != null)
+        {
+            gameOverMenuButton.onClick.RemoveAllListeners();
+            gameOverMenuButton.onClick.AddListener(GoToMainMenu);
+        }
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    private void ShowVictory(float time, float stealth)
+    {
+        if (victoryPanel == null) return;
+
+        victoryPanel.SetActive(true);
+        FreezeGame();
+
+        if (victoryTimerText != null) victoryTimerText.text = $"Time: {FormatTime(time)}";
+        if (victoryDeathsText != null) victoryDeathsText.text = $"Deaths: {deathCount}";
+        if (victoryAlertsText != null) victoryAlertsText.text = $"Alerts: {alertCount}";
+        if (victoryStealthScoreText != null) victoryStealthScoreText.text = $"Stealth Score: {stealth:F0}";
+
+        if (bestTimeText != null)
+            bestTimeText.text = fastestEscape < Mathf.Infinity ? $"Best Time: {FormatTime(fastestEscape)}" : "Best Time: --:--";
+
+        if (bestStealthScoreText != null)
+            bestStealthScoreText.text = bestStealthRating > 0 ? $"Best Stealth: {bestStealthRating:F0}" : "Best Stealth: 0";
+
+        UpdateZoneStatsDisplay();
+
+        if (victoryReplayButton != null)
+        {
+            victoryReplayButton.onClick.RemoveAllListeners();
+            victoryReplayButton.onClick.AddListener(RestartLevel);
+        }
+
+        if (victoryQuitButton != null)
+        {
+            victoryQuitButton.onClick.RemoveAllListeners();
+            victoryQuitButton.onClick.AddListener(GoToMainMenu);
+        }
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+    #endregion
+
+    #region Zone Stats
+    private void UpdateZoneStatsDisplay()
+    {
+        if (ZoneManager.Instance == null) return;
+        var stats = ZoneManager.Instance.GetZoneStats();
+
+        if (startAreaTimeText != null) startAreaTimeText.text = GetZoneTime(stats, 1);
+        if (hutAreaTimeText != null) hutAreaTimeText.text = GetZoneTime(stats, 2);
+        if (mazeAreaTimeText != null) mazeAreaTimeText.text = GetZoneTime(stats, 3);
+        if (lastAreaTimeText != null) lastAreaTimeText.text = GetZoneTime(stats, 4);
+
+        float totalTime = 0f;
+        foreach (var zone in stats) totalTime += zone.timeSpent;
+
+        if (totalZoneTimeText != null) totalZoneTimeText.text = $"{totalTime:F2}s";
+        if (zoneStatsPanel != null) zoneStatsPanel.SetActive(true);
+    }
+
+    private void UpdateGameOverZoneStatsDisplay()
+    {
+        if (ZoneManager.Instance == null) return;
+        var stats = ZoneManager.Instance.GetZoneStats();
+
+        if (gameOverStartAreaTimeText != null) gameOverStartAreaTimeText.text = GetZoneTime(stats, 1);
+        if (gameOverHutAreaTimeText != null) gameOverHutAreaTimeText.text = GetZoneTime(stats, 2);
+        if (gameOverMazeAreaTimeText != null) gameOverMazeAreaTimeText.text = GetZoneTime(stats, 3);
+        if (gameOverLastAreaTimeText != null) gameOverLastAreaTimeText.text = GetZoneTime(stats, 4);
+
+        float totalTime = 0f;
+        foreach (var zone in stats) totalTime += zone.timeSpent;
+
+        if (gameOverTotalZoneTimeText != null) gameOverTotalZoneTimeText.text = $"{totalTime:F1}s";
+        if (gameOverZoneStatsPanel != null) gameOverZoneStatsPanel.SetActive(true);
+    }
+
+    private string GetZoneTime(List<ZoneManager.ZoneData> stats, int zoneNumber)
+    {
+        foreach (var zone in stats)
+            if (zone.zoneNumber == zoneNumber)
+                return $"{zone.timeSpent:F2}s";
+        return "0.00s";
+    }
+    #endregion
+
+    #region Records
+    private void CheckNewRecords(float time, float stealth, int alerts, int deaths)
+    {
+        bool newRecord = false;
+
+        if (time < fastestEscape) { fastestEscape = time; newRecord = true; }
+        if (stealth > bestStealthRating) { bestStealthRating = stealth; newRecord = true; }
+        if (alerts < fewestAlerts) { fewestAlerts = alerts; newRecord = true; }
+        if (deaths < fewestDeaths) { fewestDeaths = deaths; newRecord = true; }
+
+        if (newRecord) SaveBestRecords();
+    }
+
+    private void SaveBestRecords()
+    {
+        PlayerPrefs.SetFloat("FastestEscape", fastestEscape);
+        PlayerPrefs.SetFloat("BestStealth", bestStealthRating);
+        PlayerPrefs.SetInt("FewestAlerts", fewestAlerts);
+        PlayerPrefs.SetInt("FewestDeaths", fewestDeaths);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadBestRecords()
+    {
+        fastestEscape = PlayerPrefs.GetFloat("FastestEscape", Mathf.Infinity);
+        bestStealthRating = PlayerPrefs.GetFloat("BestStealth", 0f);
+        fewestAlerts = PlayerPrefs.GetInt("FewestAlerts", int.MaxValue);
+        fewestDeaths = PlayerPrefs.GetInt("FewestDeaths", int.MaxValue);
+    }
+    #endregion
+
+    #region Utility
+    private string FormatTime(float timeInSeconds)
+    {
+        int minutes = Mathf.FloorToInt(timeInSeconds / 60);
+        int seconds = Mathf.FloorToInt(timeInSeconds % 60);
+        return $"{minutes:00}:{seconds:00}";
     }
 
     public void QuitGame()
@@ -957,27 +716,6 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
-    #endregion
-
-    #region destruction
-    public void UnregisterPlayer()
-    {
-        if (currentPlayer != null)
-        {
-            Debug.Log($"Player unregistered: {currentPlayer.name}");
-            currentPlayer = null;
-
-            // Optional: Notify guards that player is gone
-            Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
-            foreach (var guard in guards)
-            {
-                if (guard != null && guard.currentBrain != null)
-                {
-                    guard.currentBrain.SetPlayer(null);
-                }
-            }
-        }
-    }
-
+    private void OnApplicationQuit() => Time.timeScale = 1f;
     #endregion
 }

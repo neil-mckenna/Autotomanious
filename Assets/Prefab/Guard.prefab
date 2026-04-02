@@ -298,7 +298,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 513137791100849611}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8683a41dda715bc4d8d3864e8c6b0758, type: 3}
   m_Name: 
@@ -736,7 +736,7 @@ Transform:
   m_GameObject: {fileID: 2002753412148828957}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.72, z: 0.57}
+  m_LocalPosition: {x: 0, y: 0.833333, z: 1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -995,6 +995,7 @@ Transform:
   - {fileID: 6836263661692354747}
   - {fileID: 8748746640495963613}
   - {fileID: 370600935020606606}
+  - {fileID: 5824659860973805919}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8021094419553797382
@@ -1010,13 +1011,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Guard
   currentBrain: {fileID: 6485703321752566004, guid: 7b69112fa4742d94ea431a662b65227f, type: 3}
-  detectionRange: 15
+  detectionRange: 25
   fieldOfView: 60
   rayCastStartLocation: {fileID: 370600935020606606}
   killRange: 2
   maxHearingDistance: 12
   guardHearingSensitivity: 2
-  CanSeePlayer: 0
 --- !u!114 &6787204794513905450
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1029,7 +1029,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec9ac2a86b706144280fb7f5ead3a3b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GrassModifier
-  originalDetectionRange: 15
+  originalDetectionRange: 25
 --- !u!136 &7084643829334305030
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -3127,6 +3127,60 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &9029391865500230109
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5824659860973805919}
+  - component: {fileID: 3929878802268218345}
+  m_Layer: 8
+  m_Name: VisionConeBlocker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5824659860973805919
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9029391865500230109}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3130695589043312017}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3929878802268218345
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9029391865500230109}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38e713db2a8cf5d47aad91a63d5bf9b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VisionConeBlocker
+  heightOffset: 1.5
+  obstacleLayerMask:
+    serializedVersion: 2
+    m_Bits: 329
+  raycastSegments: 36
+  updateInterval: 0.05
+  idleColor: {r: 1, g: 0.5, b: 0, a: 0.3}
+  chasingColor: {r: 1, g: 0, b: 0, a: 0.5}
+  suspiciousColor: {r: 1, g: 1, b: 0, a: 0.4}
+  coneMaterial: {fileID: 2100000, guid: aede181b4a5d5d6428d3d76c37a98eee, type: 2}
 --- !u!1 &9131469579219152476
 GameObject:
   m_ObjectHideFlags: 0

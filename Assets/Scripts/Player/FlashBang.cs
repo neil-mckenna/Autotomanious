@@ -21,14 +21,22 @@ public class FlashBang : MonoBehaviour
     [SerializeField] private AudioClip bangSound;
     [SerializeField] private float bangVolume = 1f;
 
+    [Header("Physics")]
+    [SerializeField] private float groundDetectionDistance = 1.5f;
+    [SerializeField] private float timeToExplodeOnGround = 0.5f;
+    [SerializeField] private bool disableColliderOnGround = true;
+
     [Header("Debug")]
     [SerializeField] private bool enableDebug = true;
 
     private AudioSource audioSource;
     private bool hasExploded = false;
+    private bool hasLanded = false;
     private Rigidbody rb;
     private Collider bombCollider;
+    private MeshCollider meshCollider;
     private GameObject groundRing;
+    private float groundTouchTime = 0f;
 
     void Start()
     {
@@ -46,11 +54,14 @@ public class FlashBang : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX |
                          RigidbodyConstraints.FreezeRotationZ;
 
-        // Setup collider
+        // Setup collider - specifically get MeshCollider
         bombCollider = GetComponent<Collider>();
+        meshCollider = GetComponent<MeshCollider>();
+
         if (bombCollider != null)
         {
             bombCollider.isTrigger = false;
+            LogDebug($"Collider found: {bombCollider.GetType().Name}");
         }
 
         // Setup audio
@@ -71,19 +82,76 @@ public class FlashBang : MonoBehaviour
             collision.gameObject.CompareTag("Grass"))
             return;
 
-        // Only explode on ground
+        // Check if we hit the ground
         if (collision.gameObject.CompareTag("Ground"))
         {
-            if (!hasExploded)
+            if (!hasLanded)
             {
-                // Position on ground
-                RaycastHit hit;
-                if (Physics.Raycast(transform.position, Vector3.down, out hit, 2f))
-                {
-                    transform.position = new Vector3(transform.position.x, hit.point.y + 0.1f, transform.position.z);
-                }
+                OnLandedOnGround(collision);
+            }
 
+            groundTouchTime += Time.deltaTime;
+
+            if (groundTouchTime >= timeToExplodeOnGround && !hasExploded)
+            {
+                PositionOnGround();
                 Explode();
+            }
+        }
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        if (hasExploded || hasLanded) return;
+
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            if (!hasLanded)
+            {
+                OnLandedOnGround(collision);
+            }
+
+            groundTouchTime += Time.deltaTime;
+
+            if (groundTouchTime >= timeToExplodeOnGround && !hasExploded)
+            {
+                PositionOnGround();
+                Explode();
+            }
+        }
+    }
+
+    void OnLandedOnGround(Collision collision)
+    {
+        hasLanded = true;
+        LogDebug("Flashbang landed on ground!");
+
+        // Disable MeshCollider if enabled in settings
+        if (disableColliderOnGround && meshCollider != null)
+        {
+            meshCollider.enabled = false;
+            LogDebug("MeshCollider disabled on ground impact");
+        }
+
+        if (rb != null)
+        {
+            rb.linearVelocity = rb.linearVelocity * 0.3f;
+            rb.angularVelocity = Vector3.zero;
+            rb.constraints = RigidbodyConstraints.FreezePositionY |
+                             RigidbodyConstraints.FreezeRotationX |
+                             RigidbodyConstraints.FreezeRotationZ;
+        }
+    }
+
+    void PositionOnGround()
+    {
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position, Vector3.down, out hit, groundDetectionDistance))
+        {
+            if (hit.collider.CompareTag("Ground"))
+            {
+                transform.position = new Vector3(transform.position.x, hit.point.y + 0.05f, transform.position.z);
+                LogDebug($"Positioned on ground at y={transform.position.y}");
             }
         }
     }
@@ -96,12 +164,30 @@ public class FlashBang : MonoBehaviour
         while (!hasExploded && timer < timeout)
         {
             RaycastHit hit;
-            if (Physics.Raycast(transform.position, Vector3.down, out hit, 2f))
+            if (Physics.Raycast(transform.position, Vector3.down, out hit, groundDetectionDistance))
             {
-                if (hit.collider.CompareTag("Ground") && hit.distance < 0.5f)
+                if (hit.collider.CompareTag("Ground"))
                 {
-                    Explode();
-                    yield break;
+                    if (!hasLanded)
+                    {
+                        hasLanded = true;
+                        LogDebug("Ground detected via raycast!");
+
+                        if (disableColliderOnGround && meshCollider != null)
+                        {
+                            meshCollider.enabled = false;
+                            LogDebug("MeshCollider disabled via raycast");
+                        }
+                    }
+
+                    groundTouchTime += Time.deltaTime;
+
+                    if (groundTouchTime >= timeToExplodeOnGround && !hasExploded)
+                    {
+                        transform.position = new Vector3(transform.position.x, hit.point.y + 0.05f, transform.position.z);
+                        Explode();
+                        yield break;
+                    }
                 }
             }
 
@@ -111,6 +197,7 @@ public class FlashBang : MonoBehaviour
 
         if (!hasExploded)
         {
+            LogDebug("Timeout reached - exploding anyway");
             Explode();
         }
     }
@@ -124,9 +211,24 @@ public class FlashBang : MonoBehaviour
 
         // Disable physics
         if (rb != null)
+        {
             rb.isKinematic = true;
-        if (bombCollider != null)
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        // DISABLE THE MESH COLLIDER ON EXPLOSION
+        if (meshCollider != null)
+        {
+            meshCollider.enabled = false;
+            LogDebug("MeshCollider disabled on explosion!");
+        }
+
+        // Also disable any other colliders
+        if (bombCollider != null && bombCollider != meshCollider)
+        {
             bombCollider.enabled = false;
+        }
 
         // Create ground ring (using your prefab)
         if (groundRingPrefab != null)
@@ -148,6 +250,14 @@ public class FlashBang : MonoBehaviour
         if (flashLight != null)
         {
             flashLight.intensity = lightIntensity;
+            // Create temporary flash light if needed
+            GameObject tempLight = new GameObject("TempFlash");
+            Light temp = tempLight.AddComponent<Light>();
+            temp.type = LightType.Point;
+            temp.intensity = lightIntensity;
+            temp.range = flashRadius;
+            temp.transform.position = transform.position;
+            Destroy(tempLight, 0.15f);
             Destroy(flashLight.gameObject, 0.1f);
         }
 
@@ -157,6 +267,7 @@ public class FlashBang : MonoBehaviour
             flashEffect.transform.SetParent(null);
             flashEffect.transform.position = transform.position;
             flashEffect.Play();
+            Destroy(flashEffect.gameObject, flashEffect.main.duration);
         }
 
         if (sparkleEffect != null)
@@ -164,11 +275,14 @@ public class FlashBang : MonoBehaviour
             sparkleEffect.transform.SetParent(null);
             sparkleEffect.transform.position = transform.position;
             sparkleEffect.Play();
+            Destroy(sparkleEffect.gameObject, sparkleEffect.main.duration);
         }
 
         // Play bang sound
         if (bangSound != null && audioSource != null)
+        {
             audioSource.PlayOneShot(bangSound, bangVolume);
+        }
 
         // Stun enemies
         StunEnemies();
@@ -284,5 +398,19 @@ public class FlashBang : MonoBehaviour
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, flashRadius);
+
+        // Draw ground detection ray
+        Gizmos.color = Color.green;
+        Gizmos.DrawRay(transform.position, Vector3.down * groundDetectionDistance);
+    }
+
+    // Public method to manually disable collider (can be called from other scripts)
+    public void DisableCollider()
+    {
+        if (meshCollider != null)
+        {
+            meshCollider.enabled = false;
+            LogDebug("Collider manually disabled");
+        }
     }
 }

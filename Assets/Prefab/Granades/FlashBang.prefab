@@ -9984,7 +9984,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1856d881f14bfa49a3297c2a68418f3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlashBang
-  flashRadius: 20
+  flashRadius: 15
   stunDuration: 10
   lightIntensity: 5
   flashLight: {fileID: 2168723426573164598}
@@ -9996,6 +9996,9 @@ MonoBehaviour:
     m_Bits: 256
   bangSound: {fileID: 8300000, guid: 74e8b2d96ae9d7545a1a8bcfdf6c28dd, type: 3}
   bangVolume: 0.5
+  groundDetectionDistance: 1.5
+  timeToExplodeOnGround: 0.5
+  disableColliderOnGround: 1
   enableDebug: 1
 --- !u!33 &6400531114522231580
 MeshFilter:
