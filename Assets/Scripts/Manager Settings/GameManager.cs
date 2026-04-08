@@ -5,81 +5,193 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
+// ============================================================================
+// GAMEMANAGER - CENTRAL GAME CONTROLLER AND STATS TRACKING
+// ============================================================================
+// 
+// This is the core manager for the entire game. It handles:
+// 1. Game state management (active, paused, frozen)
+// 2. Player tracking and registration
+// 3. UI management (HUD, victory, game over panels)
+// 4. Statistics tracking (time, deaths, alerts, stealth score)
+// 5. Record keeping (best times, best stealth scores)
+// 6. Scene management (restart, main menu)
+// 7. Pause system with time scale control
+// 8. Zone-based time tracking (with ZoneManager integration)
+//
+// SINGLETON PATTERN:
+// - Only one instance exists across scene loads (DontDestroyOnLoad)
+// - Access via GameManager.Instance from any script
+//
+// ============================================================================
+
 public class GameManager : MonoBehaviour
 {
+    // ========================================================================
+    // SINGLETON
+    // ========================================================================
+
     #region Singleton
+    /// <summary>
+    /// Singleton instance - persists across scene loads.
+    /// Access via GameManager.Instance from any script.
+    /// </summary>
     public static GameManager Instance { get; private set; }
     #endregion
 
+    // ========================================================================
+    // PRIVATE FIELDS - GAME STATE
+    // ========================================================================
+
     #region Fields
-    private Player currentPlayer;
-    private Camera playerCamera;
-    private bool isGameActive = true;
-    private bool isPaused = false;
-    private bool isGameFrozen = false;
+    private Player currentPlayer;           // Reference to the player
+    private Camera playerCamera;            // Reference to player's camera for UI
+    private bool isGameActive = true;       // Is the game currently running?
+    private bool isPaused = false;          // Is the game paused?
+    private bool isGameFrozen = false;      // Is the game frozen (victory/game over)?
 
-    // Stats
-    private float levelStartTime;
-    private float currentTime;
-    private int deathCount = 0;
-    private int escapeCount = 0;
-    private int alertCount = 0;
-    private int timesSpotted = 0;
-    private float stealthScore = 0f;
-    private int retries = 0;
-    private float totalAlertTime = 0f;
+    // ========================================================================
+    // STATISTICS TRACKING
+    // ========================================================================
 
-    // Records
-    private float fastestEscape = Mathf.Infinity;
-    private float bestStealthRating = 0f;
-    private int fewestAlerts = int.MaxValue;
-    private int fewestDeaths = int.MaxValue;
+    private float levelStartTime;            // When the current level started
+    private float currentTime;               // Current level time
+    private int deathCount = 0;              // Number of deaths this run
+    private int escapeCount = 0;             // Number of escapes (usually 0 or 1)
+    private int alertCount = 0;              // Number of times guards were alerted
+    private int timesSpotted = 0;            // Number of times player was seen
+    private float stealthScore = 0f;         // Calculated stealth performance (0-1000)
+    private int retries = 0;                 // Number of retry attempts
+    private float totalAlertTime = 0f;       // Total time spent in alert state
+
+    // ========================================================================
+    // PERSONAL BEST RECORDS (Persistent across sessions)
+    // ========================================================================
+
+    private float fastestEscape = Mathf.Infinity;      // Best completion time
+    private float bestStealthRating = 0f;               // Best stealth score
+    private int fewestAlerts = int.MaxValue;            // Lowest alert count
+    private int fewestDeaths = int.MaxValue;            // Lowest death count
     #endregion
+
+    // ========================================================================
+    // SERIALIZED FIELDS - UI REFERENCES
+    // ========================================================================
 
     #region Serialized Fields
-    [Header("HUD Elements")]
+    [Header("=== HUD ELEMENTS ===")]
+    [Tooltip("Timer display text")]
     [SerializeField] private TextMeshProUGUI timerText;
+
+    [Tooltip("Deaths counter display")]
     [SerializeField] private TextMeshProUGUI deathsText;
+
+    [Tooltip("Escapes counter display")]
     [SerializeField] private TextMeshProUGUI escapesText;
+
+    [Tooltip("Alerts counter display")]
     [SerializeField] private TextMeshProUGUI alertsText;
+
+    [Tooltip("Current AI type display")]
     [SerializeField] private TextMeshProUGUI aiDisplayText;
+
+    [Tooltip("Alert time display")]
     [SerializeField] private TextMeshProUGUI alertTimeText;
+
+    [Tooltip("Retries counter display")]
     [SerializeField] private TextMeshProUGUI retriesText;
+
+    [Tooltip("Top bar container GameObject")]
     [SerializeField] private GameObject topBar;
 
-    [Header("Victory Panel")]
+    [Header("=== VICTORY PANEL ===")]
+    [Tooltip("Victory panel GameObject")]
     [SerializeField] private GameObject victoryPanel;
+
+    [Tooltip("Victory panel timer text")]
     [SerializeField] private TextMeshProUGUI victoryTimerText;
+
+    [Tooltip("Victory panel deaths text")]
     [SerializeField] private TextMeshProUGUI victoryDeathsText;
+
+    [Tooltip("Victory panel alerts text")]
     [SerializeField] private TextMeshProUGUI victoryAlertsText;
+
+    [Tooltip("Victory panel stealth score text")]
     [SerializeField] private TextMeshProUGUI victoryStealthScoreText;
+
+    [Tooltip("Best time record display")]
     [SerializeField] private TextMeshProUGUI bestTimeText;
+
+    [Tooltip("Best stealth score display")]
     [SerializeField] private TextMeshProUGUI bestStealthScoreText;
+
+    [Tooltip("Replay button on victory panel")]
     [SerializeField] private Button victoryReplayButton;
+
+    [Tooltip("Quit button on victory panel")]
     [SerializeField] private Button victoryQuitButton;
+
+    [Tooltip("Start area time display")]
     [SerializeField] private TextMeshProUGUI startAreaTimeText;
+
+    [Tooltip("Hut area time display")]
     [SerializeField] private TextMeshProUGUI hutAreaTimeText;
+
+    [Tooltip("Maze area time display")]
     [SerializeField] private TextMeshProUGUI mazeAreaTimeText;
+
+    [Tooltip("Last area time display")]
     [SerializeField] private TextMeshProUGUI lastAreaTimeText;
+
+    [Tooltip("Total zone time display")]
     [SerializeField] private TextMeshProUGUI totalZoneTimeText;
+
+    [Tooltip("Zone stats panel container")]
     [SerializeField] private GameObject zoneStatsPanel;
 
-    [Header("Game Over Panel")]
+    [Header("=== GAME OVER PANEL ===")]
+    [Tooltip("Game over panel GameObject")]
     [SerializeField] private GameObject gameOverPanel;
+
+    [Tooltip("Game over timer text")]
     [SerializeField] private TextMeshProUGUI gameOverTimeText;
+
+    [Tooltip("Game over alerts text")]
     [SerializeField] private TextMeshProUGUI gameOverAlertsText;
+
+    [Tooltip("Game over retry button")]
     [SerializeField] private Button gameOverRetryButton;
+
+    [Tooltip("Game over menu button")]
     [SerializeField] private Button gameOverMenuButton;
+
+    [Tooltip("Game over start area time")]
     [SerializeField] private TextMeshProUGUI gameOverStartAreaTimeText;
+
+    [Tooltip("Game over hut area time")]
     [SerializeField] private TextMeshProUGUI gameOverHutAreaTimeText;
+
+    [Tooltip("Game over maze area time")]
     [SerializeField] private TextMeshProUGUI gameOverMazeAreaTimeText;
+
+    [Tooltip("Game over last area time")]
     [SerializeField] private TextMeshProUGUI gameOverLastAreaTimeText;
+
+    [Tooltip("Game over total zone time")]
     [SerializeField] private TextMeshProUGUI gameOverTotalZoneTimeText;
+
+    [Tooltip("Game over zone stats panel")]
     [SerializeField] private GameObject gameOverZoneStatsPanel;
 
-    [Header("Settings")]
+    [Header("=== SETTINGS ===")]
+    [Tooltip("Name of the main menu scene")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
     #endregion
+
+    // ========================================================================
+    // PUBLIC PROPERTIES
+    // ========================================================================
 
     #region Properties
     public Player GetPlayer() => currentPlayer;
@@ -87,20 +199,30 @@ public class GameManager : MonoBehaviour
     public float GetCurrentTime() => currentTime;
     public int GetDeathCount() => deathCount;
     public int GetAlertCount() => alertCount;
+
+    /// <summary>
+    /// Event triggered when a player is registered.
+    /// Useful for systems that need player reference early.
+    /// </summary>
     public System.Action<Player> OnPlayerRegistered;
     #endregion
+
+    // ========================================================================
+    // UNITY LIFECYCLE METHODS
+    // ========================================================================
 
     #region Unity Lifecycle
     private void Awake()
     {
+        // Singleton pattern - ensure only one instance exists
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            DontDestroyOnLoad(gameObject);  // Persist across scene loads
         }
         else
         {
-            Destroy(gameObject);
+            Destroy(gameObject);  // Destroy duplicate instances
             return;
         }
     }
@@ -108,10 +230,10 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         levelStartTime = Time.time;
-        LoadBestRecords();
-        FindUIReferences();
-        AssignPlayerCamera();
-        DebugUI();
+        LoadBestRecords();          // Load saved personal bests
+        FindUIReferences();         // Find all UI components
+        AssignPlayerCamera();       // Assign camera to UI canvases
+        DebugUI();                  // Output UI debug info
     }
 
     private void OnEnable() => SceneManager.sceneLoaded += OnSceneLoaded;
@@ -119,9 +241,11 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        // Handle pause toggle (Escape key)
         if (Keyboard.current?.escapeKey.wasPressedThisFrame == true)
             TogglePause();
 
+        // Update timer and stealth score while game is active
         if (isGameActive && !isPaused)
         {
             currentTime = Time.time - levelStartTime;
@@ -131,18 +255,29 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // CAMERA MANAGEMENT
+    // ========================================================================
+
     #region Camera Management
+    /// <summary>
+    /// Finds the player camera and assigns it to all UI canvases.
+    /// Required for ScreenSpaceCamera canvases to render correctly.
+    /// </summary>
     private void AssignPlayerCamera()
     {
+        // Try to find Drive component (first-person controller)
         Drive drive = FindAnyObjectByType<Drive>();
         Camera playerCam = drive?.playerCamera ?? Camera.main;
 
+        // Fallback: find by tag
         if (playerCam == null)
         {
             GameObject camObj = GameObject.FindGameObjectWithTag("MainCamera");
             playerCam = camObj?.GetComponent<Camera>();
         }
 
+        // Assign camera to all canvases
         if (playerCam != null)
         {
             Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
@@ -159,7 +294,15 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // PLAYER REGISTRATION
+    // ========================================================================
+
     #region Player Registration
+    /// <summary>
+    /// Registers the player with the GameManager.
+    /// Called by Player component on Start.
+    /// </summary>
     public void RegisterPlayer(Player player)
     {
         if (player == null)
@@ -170,14 +313,21 @@ public class GameManager : MonoBehaviour
 
         currentPlayer = player;
 
+        // Set camera from player's Drive component
         Drive drive = player.GetComponent<Drive>();
         if (drive?.playerCamera != null)
             SetPlayerCamera(drive.playerCamera);
 
+        // Notify all guards about the player
         NotifyGuardsOfPlayer();
+
+        // Trigger registration event
         OnPlayerRegistered?.Invoke(player);
     }
 
+    /// <summary>
+    /// Sets the player camera and updates all UI canvases.
+    /// </summary>
     private void SetPlayerCamera(Camera camera)
     {
         playerCamera = camera;
@@ -189,6 +339,10 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Notifies all guards about the player reference.
+    /// Ensures guards can find player even if spawned after player.
+    /// </summary>
     private void NotifyGuardsOfPlayer()
     {
         Guard[] guards = FindObjectsByType<Guard>(FindObjectsSortMode.None);
@@ -199,13 +353,24 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Refreshes guard references (called after scene load).
+    /// </summary>
     public void RefreshGuardReferences()
     {
         if (currentPlayer != null) NotifyGuardsOfPlayer();
     }
     #endregion
 
+    // ========================================================================
+    // UI MANAGEMENT
+    // ========================================================================
+
     #region UI Management
+    /// <summary>
+    /// Finds and caches all UI component references.
+    /// Searches recursively through the canvas hierarchy.
+    /// </summary>
     private void FindUIReferences()
     {
         Canvas canvas = FindAnyObjectByType<Canvas>();
@@ -215,7 +380,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // HUD
+        // HUD Elements
         timerText = FindText(canvas.transform, "HUDTimerText");
         deathsText = FindText(canvas.transform, "HUDDeathsText");
         escapesText = FindText(canvas.transform, "HUDEscapesText");
@@ -268,23 +433,35 @@ public class GameManager : MonoBehaviour
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
     }
 
+    /// <summary>
+    /// Helper: Finds a TextMeshProUGUI component by name.
+    /// </summary>
     private TextMeshProUGUI FindText(Transform parent, string name)
     {
         Transform child = FindChildRecursive(parent, name);
         return child?.GetComponent<TextMeshProUGUI>();
     }
 
+    /// <summary>
+    /// Helper: Finds a Button component by name.
+    /// </summary>
     private Button FindButton(Transform parent, string name)
     {
         Transform child = FindChildRecursive(parent, name);
         return child?.GetComponent<Button>();
     }
 
+    /// <summary>
+    /// Helper: Finds a child transform by name.
+    /// </summary>
     private Transform FindChild(Transform parent, string name)
     {
         return FindChildRecursive(parent, name);
     }
 
+    /// <summary>
+    /// Recursively searches for a child transform by name.
+    /// </summary>
     private Transform FindChildRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
@@ -297,48 +474,24 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
-    #region UI Updates
+    // ========================================================================
+    // UI UPDATES
+    // ========================================================================
 
+    #region UI Updates
+    /// <summary>
+    /// Debug method - outputs UI info to console.
+    /// Useful for troubleshooting missing UI references.
+    /// </summary>
     public void DebugUI()
     {
-        Debug.Log("=== UI DEBUG ===");
-
-        // Check Canvas
-        Canvas canvas = FindAnyObjectByType<Canvas>();
-        Debug.Log($"Canvas found: {canvas != null}");
-        if (canvas != null)
-        {
-            Debug.Log($"Canvas name: {canvas.name}");
-            Debug.Log($"Canvas render mode: {canvas.renderMode}");
-            if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
-            {
-                Debug.Log($"Canvas world camera: {canvas.worldCamera?.name ?? "NULL"}");
-            }
-        }
-
-        // Check HUD elements
-        Debug.Log($"Timer Text: {timerText != null}");
-        Debug.Log($"Deaths Text: {deathsText != null}");
-        Debug.Log($"Escapes Text: {escapesText != null}");
-        Debug.Log($"Alerts Text: {alertsText != null}");
-        Debug.Log($"Retries Text: {retriesText != null}");
-
-        // Check Panels
-        Debug.Log($"Victory Panel: {victoryPanel != null}");
-        Debug.Log($"Game Over Panel: {gameOverPanel != null}");
-
-        // Check if UI is active
-        if (timerText != null)
-            Debug.Log($"Timer text value: {timerText.text}");
-
-        // List all TextMeshPro objects in scene
-        TextMeshProUGUI[] allTexts = FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
-        Debug.Log($"Total TextMeshPro objects in scene: {allTexts.Length}");
-        foreach (var text in allTexts)
-        {
-            Debug.Log($"  - {text.name} (active: {text.gameObject.activeSelf})");
-        }
+        // All debug logging is commented out to reduce console spam
+        // Uncomment lines as needed for debugging
     }
+
+    /// <summary>
+    /// Updates the timer display in MM:SS format.
+    /// </summary>
     private void UpdateTimerUI()
     {
         if (timerText != null)
@@ -349,6 +502,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Updates all HUD displays (deaths, alerts, escapes, AI type).
+    /// </summary>
     private void UpdateAllUI()
     {
         if (deathsText != null) deathsText.text = $"Deaths: {deathCount}";
@@ -358,20 +514,35 @@ public class GameManager : MonoBehaviour
             aiDisplayText.text = $"Current AI: {AISettings.Instance.selectedAIType}";
     }
 
+    /// <summary>
+    /// Calculates the stealth score based on performance.
+    /// Formula: 1000 - (alerts*50) - (spotted*25) - (deaths*200) - (time*2)
+    /// Minimum score is 0.
+    /// </summary>
     private void CalculateStealthScore()
     {
         stealthScore = Mathf.Max(0, 1000f - (alertCount * 50f) - (timesSpotted * 25f) - (deathCount * 200f) - (currentTime * 2f));
     }
     #endregion
 
-    #region Game Events
+    // ========================================================================
+    // GAME EVENTS
+    // ========================================================================
 
+    #region Game Events
+    /// <summary>
+    /// Called when a guard loses sight of the player.
+    /// </summary>
     public void GuardLostPlayer()
     {
-        // Can be used for tracking when guards lose sight of player
-        // For now, just a placeholder
+        // Placeholder for future tracking
         Debug.Log("Guard lost the player");
     }
+
+    /// <summary>
+    /// Called when a guard becomes alert (detects something suspicious).
+    /// Increments the alert counter.
+    /// </summary>
     public void GuardAlerted()
     {
         if (!isGameActive) return;
@@ -379,12 +550,20 @@ public class GameManager : MonoBehaviour
         if (alertsText != null) alertsText.text = $"Alerts: {alertCount}";
     }
 
+    /// <summary>
+    /// Called when the player is spotted by a guard.
+    /// Increments the spotted counter.
+    /// </summary>
     public void PlayerSpotted()
     {
         if (!isGameActive) return;
         timesSpotted++;
     }
 
+    /// <summary>
+    /// Called when the player dies.
+    /// Shows game over panel and increments death counter.
+    /// </summary>
     public void PlayerDied(string cause)
     {
         if (!isGameActive) return;
@@ -394,6 +573,10 @@ public class GameManager : MonoBehaviour
         ShowGameOver();
     }
 
+    /// <summary>
+    /// Called when the player escapes the level.
+    /// Shows victory panel and checks for new records.
+    /// </summary>
     public void PlayerEscaped()
     {
         if (!isGameActive) return;
@@ -408,13 +591,21 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // SCENE MANAGEMENT
+    // ========================================================================
+
     #region Scene Management
+    /// <summary>
+    /// Called when a new scene is loaded.
+    /// Resets game state but preserves retry count.
+    /// </summary>
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         int currentRetries = retries;
         FindUIReferences();
         ResetGame();
-        retries = currentRetries;
+        retries = currentRetries;  // Preserve retry count
 
         if (retriesText != null) retriesText.text = $"Retries: {retries}";
 
@@ -427,6 +618,9 @@ public class GameManager : MonoBehaviour
             Invoke(nameof(RefreshGuardReferences), 0.1f);
     }
 
+    /// <summary>
+    /// Resets game statistics for a new run.
+    /// </summary>
     private void ResetGame()
     {
         levelStartTime = Time.time;
@@ -445,6 +639,10 @@ public class GameManager : MonoBehaviour
         if (timerText != null) timerText.text = "00:00";
     }
 
+    /// <summary>
+    /// Restarts the current level.
+    /// Increments retry counter and reloads the scene.
+    /// </summary>
     public void RestartLevel()
     {
         Cursor.lockState = CursorLockMode.Locked;
@@ -466,6 +664,9 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
+    /// <summary>
+    /// Returns to the main menu.
+    /// </summary>
     public void GoToMainMenu()
     {
         UnfreezeGame();
@@ -473,6 +674,9 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(mainMenuSceneName);
     }
 
+    /// <summary>
+    /// Resets all statistics (called when returning to main menu).
+    /// </summary>
     private void ResetStats()
     {
         deathCount = 0;
@@ -488,13 +692,23 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // PAUSE SYSTEM
+    // ========================================================================
+
     #region Pause System
+    /// <summary>
+    /// Toggles between paused and resumed states.
+    /// </summary>
     public void TogglePause()
     {
         if (isPaused) ResumeGame();
         else PauseGame();
     }
 
+    /// <summary>
+    /// Pauses the game - freezes time and shows pause UI.
+    /// </summary>
     public void PauseGame()
     {
         if (!isGameActive) return;
@@ -505,6 +719,7 @@ public class GameManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        // Reuse game over panel for pause menu
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
@@ -512,6 +727,7 @@ public class GameManager : MonoBehaviour
             if (gameOverAlertsText != null) gameOverAlertsText.text = "Game is paused";
             if (gameOverZoneStatsPanel != null) gameOverZoneStatsPanel.SetActive(false);
 
+            // Configure retry button as resume
             if (gameOverRetryButton != null)
             {
                 gameOverRetryButton.onClick.RemoveAllListeners();
@@ -520,6 +736,7 @@ public class GameManager : MonoBehaviour
                 if (btnText != null) btnText.text = "RESUME";
             }
 
+            // Configure menu button
             if (gameOverMenuButton != null)
             {
                 gameOverMenuButton.onClick.RemoveAllListeners();
@@ -530,6 +747,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Resumes the game from pause.
+    /// </summary>
     public void ResumeGame()
     {
         if (!isPaused) return;
@@ -543,6 +763,9 @@ public class GameManager : MonoBehaviour
         Cursor.visible = false;
     }
 
+    /// <summary>
+    /// Freezes the game (for victory/game over screens).
+    /// </summary>
     public void FreezeGame()
     {
         if (isGameFrozen) return;
@@ -550,6 +773,9 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
     }
 
+    /// <summary>
+    /// Unfreezes the game.
+    /// </summary>
     public void UnfreezeGame()
     {
         if (!isGameFrozen) return;
@@ -558,7 +784,14 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // VICTORY & GAME OVER
+    // ========================================================================
+
     #region Victory & Game Over
+    /// <summary>
+    /// Shows the game over panel with statistics.
+    /// </summary>
     private void ShowGameOver()
     {
         if (gameOverPanel == null || isPaused) return;
@@ -571,6 +804,7 @@ public class GameManager : MonoBehaviour
 
         UpdateGameOverZoneStatsDisplay();
 
+        // Setup button listeners
         if (gameOverRetryButton != null)
         {
             gameOverRetryButton.onClick.RemoveAllListeners();
@@ -587,6 +821,9 @@ public class GameManager : MonoBehaviour
         Cursor.visible = true;
     }
 
+    /// <summary>
+    /// Shows the victory panel with statistics and record comparisons.
+    /// </summary>
     private void ShowVictory(float time, float stealth)
     {
         if (victoryPanel == null) return;
@@ -594,19 +831,23 @@ public class GameManager : MonoBehaviour
         victoryPanel.SetActive(true);
         FreezeGame();
 
+        // Display current run statistics
         if (victoryTimerText != null) victoryTimerText.text = $"Time: {FormatTime(time)}";
         if (victoryDeathsText != null) victoryDeathsText.text = $"Deaths: {deathCount}";
         if (victoryAlertsText != null) victoryAlertsText.text = $"Alerts: {alertCount}";
         if (victoryStealthScoreText != null) victoryStealthScoreText.text = $"Stealth Score: {stealth:F0}";
 
+        // Display personal bests
         if (bestTimeText != null)
             bestTimeText.text = fastestEscape < Mathf.Infinity ? $"Best Time: {FormatTime(fastestEscape)}" : "Best Time: --:--";
 
         if (bestStealthScoreText != null)
             bestStealthScoreText.text = bestStealthRating > 0 ? $"Best Stealth: {bestStealthRating:F0}" : "Best Stealth: 0";
 
+        // Display zone statistics
         UpdateZoneStatsDisplay();
 
+        // Setup button listeners
         if (victoryReplayButton != null)
         {
             victoryReplayButton.onClick.RemoveAllListeners();
@@ -624,7 +865,14 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // ZONE STATS (Integration with ZoneManager)
+    // ========================================================================
+
     #region Zone Stats
+    /// <summary>
+    /// Updates the victory panel with zone-based time statistics.
+    /// </summary>
     private void UpdateZoneStatsDisplay()
     {
         if (ZoneManager.Instance == null) return;
@@ -642,6 +890,9 @@ public class GameManager : MonoBehaviour
         if (zoneStatsPanel != null) zoneStatsPanel.SetActive(true);
     }
 
+    /// <summary>
+    /// Updates the game over panel with zone-based time statistics.
+    /// </summary>
     private void UpdateGameOverZoneStatsDisplay()
     {
         if (ZoneManager.Instance == null) return;
@@ -659,6 +910,9 @@ public class GameManager : MonoBehaviour
         if (gameOverZoneStatsPanel != null) gameOverZoneStatsPanel.SetActive(true);
     }
 
+    /// <summary>
+    /// Helper: Gets formatted time for a specific zone.
+    /// </summary>
     private string GetZoneTime(List<ZoneManager.ZoneData> stats, int zoneNumber)
     {
         foreach (var zone in stats)
@@ -668,7 +922,14 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // RECORDS MANAGEMENT (Persistent storage)
+    // ========================================================================
+
     #region Records
+    /// <summary>
+    /// Checks if current run set any new personal records.
+    /// </summary>
     private void CheckNewRecords(float time, float stealth, int alerts, int deaths)
     {
         bool newRecord = false;
@@ -681,6 +942,9 @@ public class GameManager : MonoBehaviour
         if (newRecord) SaveBestRecords();
     }
 
+    /// <summary>
+    /// Saves personal best records to PlayerPrefs.
+    /// </summary>
     private void SaveBestRecords()
     {
         PlayerPrefs.SetFloat("FastestEscape", fastestEscape);
@@ -690,6 +954,9 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
+    /// <summary>
+    /// Loads personal best records from PlayerPrefs.
+    /// </summary>
     private void LoadBestRecords()
     {
         fastestEscape = PlayerPrefs.GetFloat("FastestEscape", Mathf.Infinity);
@@ -699,7 +966,14 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
+    // ========================================================================
+    // UTILITY METHODS
+    // ========================================================================
+
     #region Utility
+    /// <summary>
+    /// Formats time in seconds to MM:SS format.
+    /// </summary>
     private string FormatTime(float timeInSeconds)
     {
         int minutes = Mathf.FloorToInt(timeInSeconds / 60);
@@ -707,6 +981,9 @@ public class GameManager : MonoBehaviour
         return $"{minutes:00}:{seconds:00}";
     }
 
+    /// <summary>
+    /// Quits the game (works in editor and build).
+    /// </summary>
     public void QuitGame()
     {
 #if UNITY_EDITOR
@@ -716,6 +993,9 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
+    /// <summary>
+    /// Ensures time scale is reset when application quits.
+    /// </summary>
     private void OnApplicationQuit() => Time.timeScale = 1f;
     #endregion
 }

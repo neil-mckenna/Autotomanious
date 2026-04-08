@@ -4,7 +4,7 @@ public class RingEffect : MonoBehaviour
 {
     [Header("Ring Settings")]
     [SerializeField] private float expandSpeed = 5f;
-    [SerializeField] private float fadeSpeed = 2f;
+    //[SerializeField] private float fadeSpeed = 2f;
     [SerializeField] private float maxSize = 10f;
 
     private Material material;

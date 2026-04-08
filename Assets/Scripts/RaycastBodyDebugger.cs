@@ -1,5 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+// ============================================================================
+// RAYCAST BODY DEBUGGER - VISUAL DEBUGGING TOOL FOR AI VISION SYSTEMS
+// ============================================================================
 
 public class RaycastBodyDebugger : MonoBehaviour
 {
@@ -41,7 +48,6 @@ public class RaycastBodyDebugger : MonoBehaviour
 
     void Update()
     {
-        // Remove old markers
         activeHits.RemoveAll(h => Time.time - h.time > lineDuration);
     }
 
@@ -53,26 +59,23 @@ public class RaycastBodyDebugger : MonoBehaviour
         {
             if (!showHitMarkers) continue;
 
-            // Draw cross marker
             Gizmos.color = hit.color;
             float size = markerSize;
 
-            // Horizontal line
+            // Draw cross marker
             Gizmos.DrawLine(hit.position + Vector3.left * size, hit.position + Vector3.right * size);
-            // Vertical line
             Gizmos.DrawLine(hit.position + Vector3.down * size, hit.position + Vector3.up * size);
-            // Depth line
             Gizmos.DrawLine(hit.position + Vector3.back * size, hit.position + Vector3.forward * size);
 
-            // Draw circle around hit
+            // Draw circle
             DrawCircle(hit.position, size * 0.6f, hit.color);
 
 #if UNITY_EDITOR
             if (showObjectNames)
             {
                 string label = $"{hit.bodyPart}\n{hit.objectName}\n{hit.distance:F1}m";
-                UnityEditor.Handles.color = hit.color;
-                UnityEditor.Handles.Label(hit.position + Vector3.up * 0.3f, label);
+                Handles.color = hit.color;
+                Handles.Label(hit.position + Vector3.up * 0.3f, label);
             }
 #endif
         }
@@ -109,11 +112,11 @@ public class RaycastBodyDebugger : MonoBehaviour
         // Console log
         if (isPlayer)
         {
-            Debug.Log($" HIT PLAYER! Body: {bodyPart}, Distance: {distance:F2}m at {position}");
+            Debug.Log($"HIT PLAYER! Body: {bodyPart}, Distance: {distance:F2}m at {position}");
         }
         else
         {
-            Debug.Log($" HIT: {objectName} ({bodyPart}) at {distance:F2}m - Position: {position}");
+            Debug.Log($"HIT: {objectName} ({bodyPart}) at {distance:F2}m - Position: {position}");
         }
     }
 
@@ -129,6 +132,6 @@ public class RaycastBodyDebugger : MonoBehaviour
         hit.color = missColor;
 
         activeHits.Add(hit);
-        Debug.Log($" MISS: {bodyPart} - Nothing hit at {distance:F2}m");
+        Debug.Log($"MISS: {bodyPart} - Nothing hit at {distance:F2}m");
     }
 }

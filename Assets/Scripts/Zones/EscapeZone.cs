@@ -2,35 +2,94 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
 
+// ============================================================================
+// ESCAPE ZONE - LEVEL EXIT TRIGGER WITH DELAYED ESCAPE MECHANIC
+// ============================================================================
+// 
+// This script handles the level exit/escape zone functionality.
+// When the player enters the zone and stays for a set duration, they escape.
+//
+// FEATURES:
+// 1. Delayed escape (prevents accidental triggers)
+// 2. Visual and audio feedback on escape
+// 3. Cancellable escape (player can leave zone)
+// 4. GameManager integration for stats tracking
+// 5. Disables player on escape (prevents post-game movement)
+//
+// ESCAPE SEQUENCE:
+// 1. Player enters trigger zone
+// 2. Escape timer starts (escapeDelay seconds)
+// 3. If player stays in zone, escape triggers
+// 4. If player leaves, escape cancels
+// 5. On escape: effects play, GameManager notified, player disabled
+//
+// ============================================================================
+
 public class EscapeZone : MonoBehaviour
 {
-    [Header("Escape Settings")]
+    // ========================================================================
+    // SERIALIZED FIELDS - ESCAPE SETTINGS
+    // ========================================================================
+
+    [Header("=== ESCAPE SETTINGS ===")]
+    [Tooltip("Tag of the player object")]
     [SerializeField] private string playerTag = "Player";
+
+    [Tooltip("How long player must stay in zone to escape (seconds)")]
     [SerializeField] private float escapeDelay = 1f;
 
-    private bool isEscaping = false;
+    // ========================================================================
+    // SERIALIZED FIELDS - VISUAL & AUDIO EFFECTS
+    // ========================================================================
 
-    [Header("Effects")]
+    [Header("=== EFFECTS ===")]
+    [Tooltip("Particle effect to play on escape")]
     [SerializeField] private ParticleSystem victoryEffect;
+
+    [Tooltip("Sound to play on escape")]
     [SerializeField] private AudioClip escapeSound;
 
-    private AudioSource audioSource;
-    private GameManager gameManager;
-    private bool hasEscaped = false;
-    private Coroutine escapeCoroutine;
+    // ========================================================================
+    // PRIVATE FIELDS
+    // ========================================================================
+
+    private bool isEscaping = false;      // Is escape sequence active?
+    private AudioSource audioSource;      // Audio source for escape sound
+    private GameManager gameManager;      // Reference to GameManager
+    private bool hasEscaped = false;      // Prevent multiple escapes
+    private Coroutine escapeCoroutine;    // Reference to escape coroutine
+
+    // ========================================================================
+    // UNITY LIFECYCLE METHODS
+    // ========================================================================
 
     private void Start()
+    {
+        SetupAudioSource();
+        FindGameManager();
+    }
+
+    // ========================================================================
+    // INITIALIZATION METHODS
+    // ========================================================================
+
+    /// <summary>
+    /// Sets up the audio source component for playing escape sound.
+    /// </summary>
+    private void SetupAudioSource()
     {
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
             audioSource = gameObject.AddComponent<AudioSource>();
-
-        gameManager = FindAnyObjectByType<GameManager>();
     }
 
+    /// <summary>
+    /// Finds the GameManager instance for stats tracking.
+    /// Tries static Instance first, then falls back to FindAnyObject.
+    /// </summary>
     private void FindGameManager()
     {
-        // Try static instance first
+        // Try static instance first (fastest)
         if (GameManager.Instance != null)
         {
             gameManager = GameManager.Instance;
@@ -47,16 +106,26 @@ public class EscapeZone : MonoBehaviour
         }
     }
 
+    // ========================================================================
+    // TRIGGER HANDLING
+    // ========================================================================
+
+    /// <summary>
+    /// Called when something enters the trigger zone.
+    /// Starts the escape countdown if player enters.
+    /// </summary>
     private void OnTriggerEnter(Collider other)
     {
         if (hasEscaped || isEscaping) return;
 
         if (other.CompareTag(playerTag))
         {
+            // Ensure GameManager reference exists
             if (gameManager == null)
                 FindGameManager();
 
             isEscaping = true;
+
             // Start escape coroutine with delay
             if (escapeCoroutine != null)
                 StopCoroutine(escapeCoroutine);
@@ -66,6 +135,10 @@ public class EscapeZone : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Called when something exits the trigger zone.
+    /// Cancels the escape countdown if player leaves.
+    /// </summary>
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag(playerTag))
@@ -75,7 +148,6 @@ public class EscapeZone : MonoBehaviour
             {
                 StopCoroutine(escapeCoroutine);
                 escapeCoroutine = null;
-
                 isEscaping = false;
 
                 Debug.Log("Left escape zone - escape cancelled");
@@ -83,7 +155,14 @@ public class EscapeZone : MonoBehaviour
         }
     }
 
-    IEnumerator EscapeAfterDelay()
+    // ========================================================================
+    // ESCAPE SEQUENCE
+    // ========================================================================
+
+    /// <summary>
+    /// Coroutine that waits for the escape delay then triggers escape.
+    /// </summary>
+    private IEnumerator EscapeAfterDelay()
     {
         yield return new WaitForSeconds(escapeDelay);
 
@@ -95,32 +174,38 @@ public class EscapeZone : MonoBehaviour
         isEscaping = false;
     }
 
+    /// <summary>
+    /// Performs the actual escape sequence.
+    /// Plays effects, notifies GameManager, and disables player.
+    /// </summary>
     private void Escape()
     {
         if (hasEscaped) return;
         hasEscaped = true;
         isEscaping = false;
 
-        Debug.Log("PLAYER ESCAPED!");
+        //Debug.Log("PLAYER ESCAPED!");
 
+        // Ensure GameManager reference exists
         if (gameManager == null)
             FindGameManager();
 
-        // Play effects
+        // Play visual effects
         if (victoryEffect != null)
             victoryEffect.Play();
 
+        // Play audio effect
         if (escapeSound != null && audioSource != null)
             audioSource.PlayOneShot(escapeSound);
 
-        // Notify GameManager
+        // Notify GameManager for stats tracking
         if (gameManager != null)
             gameManager.PlayerEscaped();
 
-        // Disable the trigger
+        // Disable the trigger to prevent multiple escapes
         GetComponent<Collider>().enabled = false;
 
-        // Optional: Disable player movement
+        // Disable player movement (prevent post-game movement)
         GameObject player = GameObject.FindGameObjectWithTag(playerTag);
         if (player != null)
         {
@@ -128,6 +213,13 @@ public class EscapeZone : MonoBehaviour
         }
     }
 
+    // ========================================================================
+    // DEBUG VISUALIZATION
+    // ========================================================================
+
+    /// <summary>
+    /// Draws the escape zone bounds in the Scene view for debugging.
+    /// </summary>
     private void OnDrawGizmos()
     {
         Collider col = GetComponent<Collider>();

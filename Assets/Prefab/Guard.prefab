@@ -307,10 +307,10 @@ MonoBehaviour:
   coneMaterial: {fileID: 2100000, guid: aede181b4a5d5d6428d3d76c37a98eee, type: 2}
   heightOffset: 0.5
   segments: 24
-  idleColor: {r: 0, g: 0.95446754, b: 1, a: 0.64705884}
-  searchingColor: {r: 1, g: 1, b: 0, a: 0.15}
-  chasingColor: {r: 1, g: 0, b: 0, a: 0.63529414}
-  suspiciousColor: {r: 1, g: 0, b: 0.5, a: 0.15}
+  idleColor: {r: 0, g: 1, b: 0.033230305, a: 0.21960784}
+  searchingColor: {r: 1, g: 1, b: 0, a: 0.18431373}
+  chasingColor: {r: 1, g: 0, b: 0, a: 0.21568628}
+  suspiciousColor: {r: 1, g: 0, b: 0.5, a: 0.2}
 --- !u!1 &521007190305794626
 GameObject:
   m_ObjectHideFlags: 0
@@ -1015,8 +1015,14 @@ MonoBehaviour:
   fieldOfView: 60
   rayCastStartLocation: {fileID: 370600935020606606}
   killRange: 2
-  maxHearingDistance: 12
-  guardHearingSensitivity: 2
+  maxHearingDistance: 21.7
+  guardHearingSensitivity: 4.92
+  showVisionCone: 1
+  showHearingSphere: 1
+  showKillRange: 1
+  hearingColor: {r: 0, g: 1, b: 0, a: 0.1254902}
+  visionColor: {r: 1, g: 1, b: 0, a: 0.15}
+  killColor: {r: 1, g: 0, b: 0, a: 0.16078432}
 --- !u!114 &6787204794513905450
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1063,7 +1069,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 3
+  m_Speed: 5
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -3177,9 +3183,9 @@ MonoBehaviour:
     m_Bits: 329
   raycastSegments: 36
   updateInterval: 0.05
-  idleColor: {r: 1, g: 0.5, b: 0, a: 0.3}
-  chasingColor: {r: 1, g: 0, b: 0, a: 0.5}
-  suspiciousColor: {r: 1, g: 1, b: 0, a: 0.4}
+  idleColor: {r: 0, g: 0.6000185, b: 1, a: 0.24313726}
+  chasingColor: {r: 1, g: 0, b: 0, a: 0.2509804}
+  suspiciousColor: {r: 1, g: 1, b: 0, a: 0.21176471}
   coneMaterial: {fileID: 2100000, guid: aede181b4a5d5d6428d3d76c37a98eee, type: 2}
 --- !u!1 &9131469579219152476
 GameObject:
